@@ -6,6 +6,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.permissions.PermissionSet;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayDeque;
@@ -50,7 +51,7 @@ final class GodService implements AutoCloseable {
                 Make it genuinely fun and genuinely hard, different from their previous challenges, and
                 achievable before sundown from the live state below. Set time_limit_minutes to any value;
                 the deadline is overridden to sundown of this day. Proclaim the challenge in chat.
-                """.formatted(player.getGameProfile().getName()));
+                """.formatted(player.getGameProfile().name()));
         turn.systemEvent = true;
         turn.onSuccess = onIssued;
         turn.onFailure = onFailed;
@@ -65,7 +66,7 @@ final class GodService implements AutoCloseable {
                 The sun has set and %s FAILED today's daily challenge: "%s" (progress %d/%d %s).
                 Deliver a fitting, dramatic consequence right now using run_command, matched to the
                 challenge they failed (mob ambushes, lightning, traps, losses). Announce it in chat.
-                """.formatted(player.getGameProfile().getName(), quest.challenge(),
+                """.formatted(player.getGameProfile().name(), quest.challenge(),
                 quest.progress(), quest.amount(), quest.target()));
         turn.systemEvent = true;
         turn.fallbackCommand = quest.punishmentCommand();
@@ -77,7 +78,7 @@ final class GodService implements AutoCloseable {
         ChatTurn turn = new ChatTurn(player.getUUID(), """
                 %s just died: "%s". React as you see fit: mock them, mourn them, avenge them,
                 punish whatever killed them, or stay_silent if this death bores you.
-                """.formatted(player.getGameProfile().getName(), deathMessage));
+                """.formatted(player.getGameProfile().name(), deathMessage));
         turn.systemEvent = true;
         queue.addLast(turn);
         processNext();
@@ -170,8 +171,9 @@ final class GodService implements AutoCloseable {
     private String runOperatorCommand(JsonObject arguments, ServerPlayer player) {
         String command = arguments.get("command").getAsString().strip();
         if (command.startsWith("/")) command = command.substring(1);
-        command = command.replace("{player}", player.getGameProfile().getName());
-        server.getCommands().performPrefixedCommand(player.createCommandSourceStack().withPermission(4), command);
+        command = command.replace("{player}", player.getGameProfile().name());
+        server.getCommands().performPrefixedCommand(
+                player.createCommandSourceStack().withPermission(PermissionSet.ALL_PERMISSIONS), command);
         return "ok: dispatched as level-4 operator: " + command;
     }
 
@@ -182,7 +184,7 @@ final class GodService implements AutoCloseable {
                 .formatted(quest.objective().name().toLowerCase(), quest.target(), quest.amount())));
         return "ok: %s quest created for %s: %s (%s %s x%d)%s".formatted(
                 quest.kind() == Quest.Kind.DAILY ? "daily" : "ad-hoc",
-                player.getGameProfile().getName(), quest.challenge(),
+                player.getGameProfile().name(), quest.challenge(),
                 quest.objective(), quest.target(), quest.amount(),
                 quest.kind() == Quest.Kind.DAILY ? "; deadline is sundown today" : "");
     }
@@ -219,18 +221,18 @@ final class GodService implements AutoCloseable {
     }
 
     private String snapshot(ServerPlayer speaker, ChatTurn turn) {
-        ServerLevel level = speaker.serverLevel();
+        ServerLevel level = (ServerLevel) speaker.level();
         StringBuilder players = new StringBuilder();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (!players.isEmpty()) players.append('\n');
-            players.append("- ").append(player.getGameProfile().getName())
+            players.append("- ").append(player.getGameProfile().name())
                     .append(" health=").append("%.1f/%.1f hearts".formatted(
                             player.getHealth() / 2.0F, player.getMaxHealth() / 2.0F))
                     .append(" hunger=").append(player.getFoodData().getFoodLevel()).append("/20")
                     .append(" xp=").append(player.experienceLevel)
                     .append(" position=").append("%.0f %.0f %.0f".formatted(
                             player.getX(), player.getY(), player.getZ()))
-                    .append(" dimension=").append(player.level().dimension().location())
+                    .append(" dimension=").append(player.level().dimension().identifier())
                     .append(" holding=[").append(heldItem(player)).append(']')
                     .append(" inventory=[").append(inventory(player)).append(']')
                     .append(" quest=[").append(quests.status(player)).append(']');
@@ -246,8 +248,8 @@ final class GodService implements AutoCloseable {
                 online_players=%d
                 %s
                 """.formatted(
-                lead.formatted(speaker.getGameProfile().getName(), turn.message),
-                server.getWorldData().getDifficulty(), level.getDayTime(),
+                lead.formatted(speaker.getGameProfile().name(), turn.message),
+                server.getWorldData().getDifficulty(), level.getOverworldClockTime(),
                 level.isRaining(), level.isThundering(),
                 server.getPlayerCount(), players);
     }

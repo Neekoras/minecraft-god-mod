@@ -1,0 +1,240 @@
+:root {
+  color-scheme: light;
+  --ink: #172019;
+  --paper: #f8f5ec;
+  --blue: #dceff1;
+  --green: #547a48;
+  --dark-green: #385436;
+  --soil: #8c6346;
+  --line: rgba(23, 32, 25, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--paper) 0 57%, var(--blue) 100%);
+  font-family: "IBM Plex Mono", monospace;
+}
+
+main {
+  position: relative;
+  z-index: 2;
+  width: min(1180px, calc(100% - 48px));
+  height: 100vh;
+  min-height: 660px;
+  margin: 0 auto;
+  padding: 28px 0 36px;
+}
+
+nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 18px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+}
+
+.mark span {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--ink);
+  background: var(--green);
+}
+
+.hero {
+  width: min(740px, 100%);
+  margin-top: clamp(58px, 11vh, 118px);
+}
+
+.eyebrow {
+  margin: 0 0 20px;
+  color: var(--dark-green);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-family: "DM Serif Display", Georgia, serif;
+  font-size: clamp(68px, 10vw, 136px);
+  font-weight: 400;
+  letter-spacing: -0.055em;
+  line-height: 0.79;
+}
+
+.intro {
+  max-width: 640px;
+  margin: 34px 0 0;
+  font-size: clamp(14px, 1.4vw, 17px);
+  line-height: 1.75;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  margin-top: 30px;
+}
+
+.button {
+  display: inline-block;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  padding: 14px 22px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.world {
+  position: fixed;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sun {
+  position: absolute;
+  right: 11vw;
+  top: 18vh;
+  width: 76px;
+  height: 76px;
+  background: #f1cb68;
+  box-shadow: 12px 12px 0 rgba(241, 203, 104, 0.18);
+}
+
+.cloud {
+  position: absolute;
+  width: 86px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 22px -18px 0 rgba(255, 255, 255, 0.78), 48px 0 0 rgba(255, 255, 255, 0.78);
+}
+
+.cloud-one {
+  right: 31vw;
+  top: 29vh;
+}
+
+.cloud-two {
+  right: 7vw;
+  top: 43vh;
+  transform: scale(0.7);
+}
+
+.ridge,
+.ground {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+}
+
+.ridge-back {
+  width: 45vw;
+  height: 32vh;
+  background: #8bab7f;
+  clip-path: polygon(10% 100%, 10% 68%, 24% 68%, 24% 44%, 38% 44%, 38% 56%, 54% 56%, 54% 30%, 70% 30%, 70% 45%, 84% 45%, 84% 17%, 100% 17%, 100% 100%);
+}
+
+.ridge-front {
+  width: 33vw;
+  height: 23vh;
+  background: var(--green);
+  clip-path: polygon(0 100%, 0 72%, 18% 72%, 18% 42%, 40% 42%, 40% 60%, 61% 60%, 61% 24%, 80% 24%, 80% 0, 100% 0, 100% 100%);
+}
+
+.ground {
+  left: 0;
+  height: 26px;
+  border-top: 8px solid var(--dark-green);
+  background: repeating-linear-gradient(90deg, var(--soil) 0 30px, #79543d 30px 60px);
+}
+
+@media (max-width: 720px) {
+  body {
+    overflow: auto;
+  }
+
+  main {
+    width: min(100% - 32px, 1180px);
+    min-height: 700px;
+  }
+
+  .hero {
+    margin-top: 70px;
+  }
+
+  h1 {
+    font-size: clamp(64px, 20vw, 98px);
+  }
+
+  .intro {
+    max-width: 92%;
+  }
+
+  .sun {
+    top: 55%;
+    right: 12%;
+    width: 52px;
+    height: 52px;
+  }
+
+  .ridge-back {
+    width: 85vw;
+    height: 20vh;
+  }
+
+  .ridge-front {
+    width: 67vw;
+    height: 15vh;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero > * {
+    animation: arrive 700ms both;
+  }
+
+  .hero > :nth-child(2) { animation-delay: 80ms; }
+  .hero > :nth-child(3) { animation-delay: 160ms; }
+  .hero > :nth-child(4) { animation-delay: 240ms; }
+
+  .cloud-one { animation: drift 18s ease-in-out infinite alternate; }
+  .cloud-two { animation: drift 24s ease-in-out infinite alternate-reverse; }
+}
+
+@keyframes arrive {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes drift {
+  to { translate: 36px 0; }
+}

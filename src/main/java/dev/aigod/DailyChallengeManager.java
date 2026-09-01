@@ -36,7 +36,7 @@ final class DailyChallengeManager {
 
     void tick() {
         if (++ticks % 20 != 0) return;
-        long dayTime = server.overworld().getDayTime();
+        long dayTime = server.overworld().getOverworldClockTime();
         if (!DayCycle.beforeSundown(dayTime)) return;
         long today = DayCycle.day(dayTime);
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {

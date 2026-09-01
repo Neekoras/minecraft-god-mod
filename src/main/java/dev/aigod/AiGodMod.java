@@ -29,7 +29,7 @@ public final class AiGodMod implements ModInitializer {
                 LOGGER.warn("AI God disabled: OPENAI_API_KEY is not set");
                 return;
             }
-            String model = System.getenv().getOrDefault("AI_GOD_MODEL", "gpt-5.6-luna");
+            String model = System.getenv().getOrDefault("AI_GOD_MODEL", "gpt-5.6-terra");
             String godName = System.getenv().getOrDefault("AI_GOD_NAME", "AI God");
             int compactThreshold = positiveEnvironmentInt("AI_GOD_COMPACT_THRESHOLD", 100_000);
             var worldPath = server.getWorldPath(LevelResource.ROOT);

@@ -5,16 +5,16 @@ export AWS_DEFAULT_REGION=us-west-1
 bucket=minecraft-ai-god-928535088750-us-west-1
 home=/opt/minecraft
 
-dnf install -y java-21-amazon-corretto-headless
+dnf install -y java-25-amazon-corretto-headless
 systemctl enable --now amazon-ssm-agent
 id minecraft >/dev/null 2>&1 || useradd --system --home-dir "$home" --shell /sbin/nologin minecraft
 install -d -o minecraft -g minecraft "$home/mods"
 
 curl -fsSL \
-  https://meta.fabricmc.net/v2/versions/loader/1.21.1/0.18.6/1.1.1/server/jar \
+  https://meta.fabricmc.net/v2/versions/loader/26.2/0.19.3/1.1.2/server/jar \
   -o "$home/fabric-server-launch.jar"
 curl -fsSL \
-  'https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/0.116.15+1.21.1/fabric-api-0.116.15+1.21.1.jar' \
+  'https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/0.158.0+26.2/fabric-api-0.158.0+26.2.jar' \
   -o "$home/mods/fabric-api.jar"
 
 printf 'eula=true\n' > "$home/eula.txt"
@@ -43,7 +43,7 @@ User=minecraft
 Group=minecraft
 WorkingDirectory=/opt/minecraft
 EnvironmentFile=-/etc/minecraft-ai-god.env
-ExecStart=/usr/bin/java -Xms1G -Xmx3G -jar fabric-server-launch.jar nogui
+ExecStart=/usr/lib/jvm/java-25-amazon-corretto/bin/java -Xms1G -Xmx3G -jar fabric-server-launch.jar nogui
 Restart=always
 RestartSec=10
 TimeoutStopSec=120

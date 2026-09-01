@@ -1,5 +1,7 @@
 # AI God
 
+Website: [mcgodmod.com](https://mcgodmod.com)
+
 AI God is a server-side Fabric mod that puts one persistent OpenAI-powered god
 in ordinary Minecraft chat. There is no bot command and no separate UI: every
 player message becomes a turn, and the god decides whether to answer, act,
@@ -17,15 +19,19 @@ data packs.
 
 ## Join the live server
 
-Open **Minecraft: Java Edition 1.21.1**, choose **Multiplayer**, and add:
+Open **Minecraft: Java Edition 26.2**, choose **Multiplayer**, and add:
 
 ```text
-54.193.72.0:25565
+mcgodmod.com
 ```
 
 No client mod is needed. The server is public, uses normal Minecraft account
 authentication, and currently allows up to 10 players. Just talk in ordinary
 server chat; there is no `/god` command or special prefix.
+
+The same domain hosts the project landing page. Minecraft uses its standard
+DNS service record to reach the game server, so players still enter only
+`mcgodmod.com`.
 
 ## What it can do
 
@@ -109,14 +115,14 @@ patterns.
 
 ## Requirements
 
-- Minecraft Java Edition 1.21.1 dedicated server
+- Minecraft Java Edition 26.2 dedicated server
 - Fabric Loader 0.18 or newer
-- Fabric API for Minecraft 1.21.1
-- Java 21 or newer
+- Fabric API for Minecraft 26.2
+- Java 25 or newer
 - An OpenAI API key with access to the configured model
 
 The default model is
-[`gpt-5.6-luna`](https://developers.openai.com/api/docs/models/gpt-5.6-luna)
+[`gpt-5.6-terra`](https://developers.openai.com/api/docs/models/gpt-5.6-terra)
 with reasoning effort `none`. It supports the Responses API and function
 calling while keeping chat responsive. Four live custom-tool trials per model
 from the production EC2 server measured median response times of 0.932 seconds
@@ -145,7 +151,7 @@ Provide configuration through the server process environment:
 
 ```bash
 export OPENAI_API_KEY="sk-..."
-export AI_GOD_MODEL="gpt-5.6-luna"                 # optional
+export AI_GOD_MODEL="gpt-5.6-terra"                # optional
 export AI_GOD_NAME="AI God"                        # optional display name and persona name
 export AI_GOD_COMPACT_THRESHOLD="100000"          # optional
 java -jar fabric-server-launch.jar nogui
@@ -217,6 +223,10 @@ The project is deliberately small: Java's built-in HTTP client talks directly
 to the Responses API, Gson handles JSON through Minecraft's existing runtime,
 and Fabric events provide chat and quest progress.
 
+The static landing page lives in [`website/`](website/). Cloudflare Pages is
+connected directly to this GitHub repository and publishes that directory from
+every push to `main`; there is no separate site build command.
+
 ## AWS deployment
 
 Production is deliberately one small stack:
@@ -228,8 +238,8 @@ push to main -> GitHub Actions builds and tests -> private S3 artifact
 ```
 
 - EC2: one `t3.medium` Amazon Linux 2023 instance in `us-west-1`
-- Address: Elastic IP `54.193.72.0`, TCP port `25565`
-- Runtime: Java 21, Fabric Loader, Fabric API, and one `minecraft.service`
+- Address: `mcgodmod.com` (Elastic IP `54.193.72.0`, TCP port `25565`)
+- Runtime: Java 25, Fabric Loader, Fabric API, and one `minecraft.service`
 - Administration: AWS Systems Manager; SSH port 22 is not exposed
 - Secrets: encrypted Systems Manager parameter
   `/minecraft-ai-god/openai-api-key`

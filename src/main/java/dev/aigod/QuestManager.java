@@ -3,9 +3,10 @@ package dev.aigod;
 import com.google.gson.JsonObject;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.permissions.PermissionSet;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.HashMap;
@@ -73,7 +74,7 @@ final class QuestManager {
     void tick() {
         if (++ticks % 20 != 0) return;
         long nowMillis = System.currentTimeMillis();
-        long nowDayTime = server.overworld().getDayTime();
+        long nowDayTime = server.overworld().getOverworldClockTime();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             Quest quest = quests.get(player.getUUID());
             if (quest == null) continue;
@@ -97,7 +98,7 @@ final class QuestManager {
     Quest cancel(ServerPlayer player) {
         Quest quest = quests.remove(player.getUUID());
         if (quest == null) {
-            throw new IllegalArgumentException(player.getGameProfile().getName() + " has no active quest.");
+            throw new IllegalArgumentException(player.getGameProfile().name() + " has no active quest.");
         }
         save();
         return quest;
@@ -106,11 +107,11 @@ final class QuestManager {
     String forceComplete(ServerPlayer player) {
         Quest quest = quests.get(player.getUUID());
         if (quest == null) {
-            throw new IllegalArgumentException(player.getGameProfile().getName() + " has no active quest.");
+            throw new IllegalArgumentException(player.getGameProfile().name() + " has no active quest.");
         }
         quest.forceComplete();
         changed(player, quest);
-        return "ok: quest of %s marked complete; reward command ran".formatted(player.getGameProfile().getName());
+        return "ok: quest of %s marked complete; reward command ran".formatted(player.getGameProfile().name());
     }
 
     String status(ServerPlayer player) {
@@ -118,7 +119,7 @@ final class QuestManager {
         if (quest == null) return "The AI God has placed no burden upon you.";
         String remaining;
         if (quest.deadlineDayTime() > 0) {
-            long ticksLeft = Math.max(0, quest.deadlineDayTime() - server.overworld().getDayTime());
+            long ticksLeft = Math.max(0, quest.deadlineDayTime() - server.overworld().getOverworldClockTime());
             remaining = "%d game ticks until sundown".formatted(ticksLeft);
         } else {
             long seconds = Math.max(0, (quest.deadlineMillis() - System.currentTimeMillis()) / 1_000);
@@ -145,9 +146,9 @@ final class QuestManager {
     }
 
     void runOperatorCommand(String command, ServerPlayer player) {
-        String expanded = command.replace("{player}", player.getGameProfile().getName());
+        String expanded = command.replace("{player}", player.getGameProfile().name());
         server.getCommands().performPrefixedCommand(
-                player.createCommandSourceStack().withPermission(4),
+                player.createCommandSourceStack().withPermission(PermissionSet.ALL_PERMISSIONS),
                 expanded.startsWith("/") ? expanded.substring(1) : expanded
         );
     }
@@ -162,7 +163,7 @@ final class QuestManager {
     }
 
     private static void validateTarget(Quest.Objective objective, String target) {
-        ResourceLocation id = ResourceLocation.tryParse(target);
+        Identifier id = Identifier.tryParse(target);
         boolean valid = id != null && switch (objective) {
             case KILL -> BuiltInRegistries.ENTITY_TYPE.containsKey(id);
             case MINE -> BuiltInRegistries.BLOCK.containsKey(id);

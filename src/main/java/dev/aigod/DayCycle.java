@@ -1,6 +1,6 @@
 package dev.aigod;
 
-/** Pure helpers for Minecraft's 24000-tick day, driven by {@code ServerLevel#getDayTime()}. */
+/** Pure helpers for Minecraft's 24000-tick day, driven by the overworld clock. */
 final class DayCycle {
     static final long DAY_LENGTH = 24_000;
     static final long SUNDOWN = 12_000;
