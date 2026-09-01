@@ -63,8 +63,6 @@ final class GodService implements AutoCloseable {
     }
 
     void hear(ServerPlayer player, String message) {
-        broadcastChat(Component.literal("<%s> %s"
-                .formatted(player.getGameProfile().name(), message)));
         queue.addLast(new ChatTurn(player.getUUID(), message));
         processNext();
     }
