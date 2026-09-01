@@ -61,6 +61,8 @@ final class GodService implements AutoCloseable {
     }
 
     void hear(ServerPlayer player, String message) {
+        server.getPlayerList().broadcastSystemMessage(Component.literal("<%s> %s"
+                .formatted(player.getGameProfile().name(), message)), false);
         queue.addLast(new ChatTurn(player.getUUID(), message));
         processNext();
     }
@@ -466,8 +468,7 @@ final class GodService implements AutoCloseable {
         Long dailyDeadline = pendingDailyDeadline.remove(player.getUUID());
         Quest quest = quests.create(player, arguments, dailyDeadline);
         turn.silent = true;
-        player.sendSystemMessage(Component.literal("§d[%s] §f%s"
-                .formatted(godName, MinecraftChatText.fromModel(quest.challenge()))));
+        say(quest.challenge());
         return "ok: %s quest created for %s: %s (%s %s x%d)%s".formatted(
                 quest.kind() == Quest.Kind.DAILY ? "daily" : "ad-hoc",
                 player.getGameProfile().name(), quest.challenge(),
@@ -528,7 +529,14 @@ final class GodService implements AutoCloseable {
         }
         String lead = turn.systemEvent
                 ? "Automatic server event concerning %s: %s"
-                : "New ordinary server chat message from %s: %s";
+                : """
+                  New public server chat turn.
+                  current_speaker=%s
+                  current_speaker_uuid=%s
+                  identity_rule=In this turn, I/me/my/you/your refer only to current_speaker unless another player is explicitly named.
+                  current_speaker_quest=%s
+                  message=%s
+                  """;
         String schedules = scheduledEvents.isEmpty() ? "" : "\nActive scheduled events:\n"
                 + scheduledEvents.stream()
                 .map(event -> "- " + event.id() + " for " + event.playerName() + ": "
@@ -544,7 +552,10 @@ final class GodService implements AutoCloseable {
                 online_players=%d
                 %s%s
                 """.formatted(
-                lead.formatted(speaker.getGameProfile().name(), turn.message),
+                turn.systemEvent
+                        ? lead.formatted(speaker.getGameProfile().name(), turn.message)
+                        : lead.formatted(speaker.getGameProfile().name(), speaker.getUUID(),
+                                quests.status(speaker), turn.message),
                 server.getWorldData().getDifficulty(), DayCycle.day(level.getOverworldClockTime()),
                 DayCycle.phase(level.getOverworldClockTime()), level.getOverworldClockTime(),
                 level.isRaining(), level.isThundering(),

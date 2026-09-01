@@ -81,8 +81,13 @@ The god sees live context on every turn:
 - the preceding shared server conversation and prior tool results.
 
 Chat turns are queued in order, so simultaneous messages cannot fork or race
-the god's shared memory. Model-written chat is kept as plain Minecraft text: no
-Markdown renderer, headings, or emoji-heavy formatting.
+the god's shared memory. The room is universal: the mod broadcasts every player
+message to the whole server once, every player feeds the same conversation, and
+every god response is visible to everyone. Player names and UUIDs remain attached
+to their turns, so first-person language belongs to the current speaker and one
+player's inventory or contract is not attributed to another. Model-written chat
+is kept as plain Minecraft text: no Markdown renderer, headings, or emoji-heavy
+formatting.
 
 ## Daily challenges
 

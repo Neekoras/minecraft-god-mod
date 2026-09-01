@@ -21,8 +21,10 @@ public final class AiGodMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        ServerMessageEvents.CHAT_MESSAGE.register((message, player, parameters) -> {
-            if (god != null) god.hear(player, message.signedContent());
+        ServerMessageEvents.ALLOW_CHAT_MESSAGE.register((message, player, parameters) -> {
+            if (god == null) return true;
+            god.hear(player, message.signedContent());
+            return false;
         });
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
