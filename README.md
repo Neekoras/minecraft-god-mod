@@ -3,14 +3,14 @@
 Website: [mcgodmod.com](https://mcgodmod.com)
 
 AI God is a server-side Fabric mod that puts one persistent OpenAI-powered god
-in ordinary Minecraft chat. There is no bot command and no separate UI: every
+in ordinary Minecraft chat. There is no bot command and no separate player UI: every
 player message becomes a turn, and the god decides whether to answer, act,
 offer a bargain, or remain completely silent.
 
 ```text
 <Dennis> can I have a diamond pickaxe?
-[AI God] Bring me the wool of twelve sheep before nightfall. Fail, and the sky answers.
-Objective: kill minecraft:sheep × 12.
+[AI God] bring me twelve sheep before sunset. then we'll talk pickaxes.
+objective: kill minecraft:sheep × 12
 ```
 
 The god is intentionally not sandboxed. It can execute **every command installed
@@ -29,17 +29,25 @@ No client mod is needed. The server is public, uses normal Minecraft account
 authentication, and currently allows up to 10 players. Just talk in ordinary
 server chat; there is no `/god` command or special prefix.
 
+The first time a player joins, the god generates a short personal introduction.
+Later joins get a shorter contextual welcome based on the same shared conversation
+and current world state. These are normal model turns, not canned announcements.
+
 The same domain hosts the project landing page. Minecraft uses its standard
 DNS service record to reach the game server, so players still enter only
 `mcgodmod.com`.
 
 ## What it can do
 
-The model receives five custom tools:
+The model receives seven custom tools:
 
 - `run_command` executes any installed server command as the speaking player
   with level-4 permission. Relative coordinates and selectors therefore start
   from that player. The model can call it repeatedly in one turn.
+- `command_help` reads the running server's real Brigadier command tree before
+  the model uses unfamiliar vanilla, mod, or data-pack syntax.
+- `show_text` creates native `text_display` entities without making the model
+  hand-write version-sensitive entity data.
 - `create_quest` creates a timed `KILL`, `MINE`, or `COLLECT` objective. Its
   success reward and timeout punishment are unrestricted operator commands.
 - `complete_challenge` marks an online player's active quest complete and runs
@@ -49,8 +57,10 @@ The model receives five custom tools:
 - `stay_silent` ends the turn without putting a god message in chat.
 
 Tool results go back to the model. It can issue more commands after seeing a
-result, then speak or choose silence. There is no local tool-call count cap and
-no allowlist of Minecraft commands.
+result, then speak or choose silence. Command syntax is parsed before execution,
+and the real command result goes back to the model so it cannot report a failed
+command as successful. There is no local tool-call count cap and no allowlist of
+Minecraft commands.
 
 The god sees live context on every turn:
 
@@ -61,7 +71,8 @@ The god sees live context on every turn:
 - the preceding shared server conversation and prior tool results.
 
 Chat turns are queued in order, so simultaneous messages cannot fork or race
-the god's shared memory.
+the god's shared memory. Model-written chat is kept as plain Minecraft text: no
+Markdown renderer, headings, or emoji-heavy formatting.
 
 ## Daily challenges
 
@@ -100,9 +111,11 @@ A renegotiated daily challenge keeps its sundown deadline.
 
 ## Memory and compaction
 
-AI God chains Responses API turns with `previous_response_id`. The latest
-completed response ID is saved in `ai-god-conversation.txt` inside the world
-folder, allowing the conversation to survive a normal server restart.
+AI God attaches every Responses API turn to one OpenAI Conversation. The
+conversation ID is saved in `ai-god-conversation.txt` inside the world folder,
+allowing the same shared memory to survive normal server restarts. Conversation
+items have no 30-day response-object expiry, so the native history also powers
+the admin activity page without a second logging system.
 
 Server-side context compaction is enabled automatically at 100,000 rendered
 tokens. OpenAI compresses older conversation and tool history and carries the
@@ -154,6 +167,8 @@ export OPENAI_API_KEY="sk-..."
 export AI_GOD_MODEL="gpt-5.6-terra"                # optional
 export AI_GOD_NAME="AI God"                        # optional display name and persona name
 export AI_GOD_COMPACT_THRESHOLD="100000"          # optional
+export AI_GOD_ADMIN_PORT="8765"                    # optional, loopback only
+export AI_GOD_ADMIN_PASSWORD="use-a-long-password" # enables the admin page
 java -jar fabric-server-launch.jar nogui
 ```
 
@@ -198,7 +213,7 @@ exact Minecraft name.
 ```text
 normal server chat
   -> live world/player snapshot
-  -> OpenAI Responses API + shared previous_response_id
+  -> OpenAI Responses API + one persistent Conversation
       -> speak
       -> stay silent
       -> run one or more unrestricted operator commands
@@ -227,6 +242,24 @@ The static landing page lives in [`website/`](website/). Cloudflare Pages is
 connected directly to this GitHub repository and publishes that directory from
 each `main` push that changes `website/**`; there is no separate site build
 command.
+
+## Admin activity
+
+When `AI_GOD_ADMIN_PASSWORD` is set, the mod serves a small read-only activity
+page on `127.0.0.1:8765`. Every page, asset, and API request requires HTTP Basic
+authentication with username `admin` and that password. It does not
+create another log or database. It reads the native OpenAI Conversation directly,
+showing recent player/server inputs, model replies, tool arguments, tool results,
+exposed reasoning summaries, and tool errors.
+OpenAI does not expose private chain-of-thought, so the dashboard does not claim
+to show it.
+
+Production can publish that loopback page as `admin.mcgodmod.com` through a
+Cloudflare Tunnel. Cloudflare Access is not required because the mod enforces the
+password itself. The EC2 security group does not need another inbound port. The
+deployment reads the password from the encrypted SSM parameter
+`/minecraft-ai-god/admin-password`; use a long URL-safe value so it can be loaded
+cleanly by systemd.
 
 ## AWS deployment
 

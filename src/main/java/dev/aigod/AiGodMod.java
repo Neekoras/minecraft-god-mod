@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.storage.LevelResource;
@@ -16,11 +17,16 @@ public final class AiGodMod implements ModInitializer {
     public static final String MOD_ID = "ai_god";
     private static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     private static GodService god;
+    private static AdminServer admin;
 
     @Override
     public void onInitialize() {
         ServerMessageEvents.CHAT_MESSAGE.register((message, player, parameters) -> {
             if (god != null) god.hear(player, message.signedContent());
+        });
+
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            if (god != null) god.playerJoined(handler.getPlayer());
         });
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
@@ -41,10 +47,23 @@ public final class AiGodMod implements ModInitializer {
                     worldPath.resolve("ai-god-conversation.txt"), LOGGER);
             god = new GodService(server, apiKey, model, godName, compactThreshold,
                     store, dailyStore, conversationStore);
+            String adminPassword = System.getenv("AI_GOD_ADMIN_PASSWORD");
+            if (adminPassword == null || adminPassword.isBlank()) {
+                LOGGER.warn("Admin page disabled: AI_GOD_ADMIN_PASSWORD is not set");
+            } else {
+                try {
+                    admin = new AdminServer(apiKey, model, conversationStore,
+                            positiveEnvironmentInt("AI_GOD_ADMIN_PORT", 8765), adminPassword, LOGGER);
+                } catch (java.io.IOException exception) {
+                    LOGGER.error("Could not start the local AI God admin server", exception);
+                }
+            }
             LOGGER.info("{} awakened using {}", godName, model);
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            if (admin != null) admin.close();
+            admin = null;
             if (god != null) god.close();
             god = null;
         });

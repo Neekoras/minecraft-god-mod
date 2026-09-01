@@ -27,7 +27,9 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: ai-god-${{ github.sha }}
-          path: build/libs/ai-god-0.1.0.jar
+          path: |
+            build/libs/ai-god-0.1.0.jar
+            server-icon.png
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
@@ -38,13 +40,17 @@ jobs:
             "s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}.jar"
           aws s3 cp build/libs/ai-god-0.1.0.jar \
             "s3://${{ vars.AWS_ARTIFACT_BUCKET }}/latest/ai-god.jar"
+          aws s3 cp server-icon.png \
+            "s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}-server-icon.png"
+          aws s3 cp server-icon.png \
+            "s3://${{ vars.AWS_ARTIFACT_BUCKET }}/latest/server-icon.png"
       - name: Deploy and restart Minecraft
         run: |
           command_id=$(aws ssm send-command \
             --instance-ids "${{ vars.EC2_INSTANCE_ID }}" \
             --document-name AWS-RunShellScript \
             --comment "Deploy ${GITHUB_SHA}" \
-            --parameters "commands=/usr/local/bin/minecraft-deploy s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}.jar" \
+            --parameters "commands=aws s3 cp s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}-server-icon.png /opt/minecraft/server-icon.png && chown minecraft:minecraft /opt/minecraft/server-icon.png && /usr/local/bin/minecraft-deploy s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}.jar" \
             --query Command.CommandId \
             --output text)
           aws ssm wait command-executed \

@@ -19,18 +19,21 @@ final class ConversationStore {
     String load() {
         if (!Files.exists(path)) return null;
         try {
-            String responseId = Files.readString(path).strip();
-            return responseId.isEmpty() ? null : responseId;
+            String conversationId = Files.readString(path).strip();
+            if (conversationId.isEmpty()) return null;
+            if (conversationId.startsWith("conv_")) return conversationId;
+            logger.info("Starting a persistent OpenAI Conversation; the saved value uses the older response-chain format");
+            return null;
         } catch (IOException exception) {
             logger.error("Could not load AI God conversation state from {}", path, exception);
             return null;
         }
     }
 
-    void save(String responseId) {
+    void save(String conversationId) {
         Path temporary = path.resolveSibling(path.getFileName() + ".tmp");
         try {
-            Files.writeString(temporary, responseId);
+            Files.writeString(temporary, conversationId);
             Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException exception) {
             logger.error("Could not save AI God conversation state to {}", path, exception);

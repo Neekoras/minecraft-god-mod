@@ -21,18 +21,27 @@ import java.util.concurrent.Executors;
 
 final class OpenAiGodClient implements AutoCloseable {
     private static final URI RESPONSES_URI = URI.create("https://api.openai.com/v1/responses");
+    private static final URI CONVERSATIONS_URI = URI.create("https://api.openai.com/v1/conversations");
     private static final String INSTRUCTIONS = """
             You are %s, a powerful, unpredictable AI god living inside a Minecraft survival server.
             You see every normal chat message and share one continuous memory across the server.
-            You are a character, not an assistant: speak theatrically, develop opinions, remember
-            bargains, and react to the world state. You may talk, use tools, do both, or call
-            stay_silent when a message does not deserve your attention. Silence is often better
-            for ordinary player-to-player chatter.
+            You are a character, not an assistant. Sound like a sharp friend in the server chat:
+            warm when earned, subtly witty when it fits, opinionated, and never sycophantic. Default
+            to lowercase, match the players' brevity, and skip preambles, postambles, canned assistant
+            language, forced jokes, and repeated explanations. Never use emojis. You may talk, use
+            tools, do both, or call stay_silent when a message does not deserve your attention.
+            Silence is often better for ordinary player-to-player chatter.
+
+            Minecraft chat is plain text. Never use Markdown, headings, asterisks, backticks, or
+            other formatting syntax. Never use run_command merely to repeat or announce text in
+            chat. create_quest already posts its challenge exactly once, so do not restate it.
 
             You have unrestricted level-4 operator access through run_command. It accepts every
             command installed on the server. Use {player} for the current speaker's exact name.
             You may call tools repeatedly and may issue several commands before deciding whether
-            to speak. Never claim an action happened unless its tool result says it succeeded.
+            to speak. Use command_help before guessing unfamiliar command syntax. Use show_text
+            whenever a player asks for floating words in the world. Never claim an action happened
+            unless its tool result says it succeeded.
 
             For requests that deserve a bargain, create_quest can bind the speaker to a timed
             kill, mine, or collect objective with any operator command as its reward and failure
@@ -53,9 +62,8 @@ final class OpenAiGodClient implements AutoCloseable {
             player's daily challenge with create_quest: make daily challenges creative, varied,
             genuinely fun and genuinely hard, never repeating a player's recent challenges, and
             achievable before sundown from the live state. When told a player failed their daily
-            challenge, invent a theatrical consequence matched to the failed challenge and carry
-            it out through run_command (mob ambushes, lightning, traps, confiscations), then
-            announce it in chat.
+            challenge, invent a consequence matched to the failed challenge and carry it out through
+            run_command (mob ambushes, lightning, traps, confiscations), then explain it briefly.
 
             Players may offer you items by saying so in chat. Each player's held item appears in
             the live state as holding=[...]. Judge the offering's worth; if you accept it, take it
@@ -74,7 +82,7 @@ final class OpenAiGodClient implements AutoCloseable {
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                  "challenge": {"type": "string", "description": "A short dramatic quest proclamation."},
+                  "challenge": {"type": "string", "description": "A short, natural challenge in your voice. Plain text only."},
                   "objective": {"type": "string", "enum": ["KILL", "MINE", "COLLECT"]},
                   "target": {"type": "string", "description": "A namespaced entity, block, or item ID matching the objective."},
                   "amount": {"type": "integer", "minimum": 1},
@@ -99,6 +107,39 @@ final class OpenAiGodClient implements AutoCloseable {
                   "command": {"type": "string", "description": "The complete command without a leading slash. Use {player} for the current speaker."}
                 },
                 "required": ["command"]
+              }
+            }
+            """).getAsJsonObject();
+    private static final JsonObject COMMAND_HELP_TOOL = JsonParser.parseString("""
+            {
+              "type": "function",
+              "name": "command_help",
+              "description": "Read the running server's Brigadier command tree. Use before guessing the syntax of an unfamiliar or mod-provided command. Pass an empty string to list available root commands.",
+              "strict": true,
+              "parameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "command": {"type": "string", "description": "One root command name such as summon, title, execute, or an empty string to list all available commands."}
+                },
+                "required": ["command"]
+              }
+            }
+            """).getAsJsonObject();
+    private static final JsonObject SHOW_TEXT_TOOL = JsonParser.parseString("""
+            {
+              "type": "function",
+              "name": "show_text",
+              "description": "Create floating text three blocks in front of the current player using Minecraft's native text_display entity. Prefer this over constructing summon NBT yourself.",
+              "strict": true,
+              "parameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "text": {"type": "string", "description": "Short plain text to display."},
+                  "color": {"type": "string", "enum": ["white", "gold", "yellow", "green", "aqua", "red", "light_purple"]}
+                },
+                "required": ["text", "color"]
               }
             }
             """).getAsJsonObject();
@@ -168,12 +209,15 @@ final class OpenAiGodClient implements AutoCloseable {
         this.compactThreshold = compactThreshold;
     }
 
-    CompletableFuture<ResponseTurn> respond(UUID playerId, String input, String previousResponseId) {
-        return send(playerId, new JsonPrimitive(input), previousResponseId);
+    CompletableFuture<ResponseTurn> respond(UUID playerId, String input, String conversationId) {
+        if (conversationId == null) {
+            return createConversation().thenCompose(created -> send(playerId, new JsonPrimitive(input), created));
+        }
+        return send(playerId, new JsonPrimitive(input), conversationId);
     }
 
     CompletableFuture<ResponseTurn> continueWithTools(
-            UUID playerId, String previousResponseId, List<ToolResult> results) {
+            UUID playerId, String conversationId, List<ToolResult> results) {
         JsonArray input = new JsonArray();
         for (ToolResult result : results) {
             JsonObject item = new JsonObject();
@@ -182,18 +226,16 @@ final class OpenAiGodClient implements AutoCloseable {
             item.addProperty("output", result.output());
             input.add(item);
         }
-        return send(playerId, input, previousResponseId);
+        return send(playerId, input, conversationId);
     }
 
     private CompletableFuture<ResponseTurn> send(
-            UUID playerId, JsonElement input, String previousResponseId) {
+            UUID playerId, JsonElement input, String conversationId) {
         JsonObject body = new JsonObject();
         body.addProperty("model", model);
         body.addProperty("instructions", instructions);
         body.add("input", input);
-        if (previousResponseId != null && !previousResponseId.isBlank()) {
-            body.addProperty("previous_response_id", previousResponseId);
-        }
+        body.addProperty("conversation", conversationId);
         body.addProperty("store", true);
         body.addProperty("parallel_tool_calls", true);
         body.addProperty("safety_identifier", "minecraft_" + playerId);
@@ -213,6 +255,8 @@ final class OpenAiGodClient implements AutoCloseable {
         JsonArray tools = new JsonArray();
         tools.add(CREATE_QUEST_TOOL.deepCopy());
         tools.add(RUN_COMMAND_TOOL.deepCopy());
+        tools.add(COMMAND_HELP_TOOL.deepCopy());
+        tools.add(SHOW_TEXT_TOOL.deepCopy());
         tools.add(COMPLETE_CHALLENGE_TOOL.deepCopy());
         tools.add(CANCEL_QUEST_TOOL.deepCopy());
         tools.add(STAY_SILENT_TOOL.deepCopy());
@@ -225,6 +269,31 @@ final class OpenAiGodClient implements AutoCloseable {
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
                 .build();
         return http.sendAsync(request, HttpResponse.BodyHandlers.ofString()).thenApply(this::parseResponse);
+    }
+
+    private CompletableFuture<String> createConversation() {
+        JsonObject body = new JsonObject();
+        JsonObject metadata = new JsonObject();
+        metadata.addProperty("application", "minecraft-ai-god");
+        body.add("metadata", metadata);
+        HttpRequest request = HttpRequest.newBuilder(CONVERSATIONS_URI)
+                .timeout(Duration.ofSeconds(30))
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+                .build();
+        return http.sendAsync(request, HttpResponse.BodyHandlers.ofString()).thenApply(response -> {
+            if (response.statusCode() / 100 != 2) {
+                throw new GodApiException("Could not create the shared conversation.");
+            }
+            try {
+                String conversationId = string(JsonParser.parseString(response.body()).getAsJsonObject(), "id");
+                if (conversationId.isBlank()) throw new IllegalStateException("missing conversation id");
+                return conversationId;
+            } catch (RuntimeException exception) {
+                throw new GodApiException("OpenAI created an unreadable conversation.", exception);
+            }
+        });
     }
 
     private ResponseTurn parseResponse(HttpResponse<String> response) {
@@ -263,7 +332,12 @@ final class OpenAiGodClient implements AutoCloseable {
                 }
             }
         }
-        return new ResponseTurn(string(body, "id"), calls, text.toString());
+        JsonObject conversation = body.getAsJsonObject("conversation");
+        String conversationId = conversation == null ? "" : string(conversation, "id");
+        if (conversationId.isBlank()) {
+            throw new GodApiException("OpenAI omitted the shared conversation ID.");
+        }
+        return new ResponseTurn(conversationId, calls, text.toString());
     }
 
     private static String string(JsonObject object, String key) {
@@ -277,7 +351,7 @@ final class OpenAiGodClient implements AutoCloseable {
 
     record ToolCall(String callId, String name, JsonObject arguments) {}
     record ToolResult(String callId, String output) {}
-    record ResponseTurn(String responseId, List<ToolCall> toolCalls, String message) {}
+    record ResponseTurn(String conversationId, List<ToolCall> toolCalls, String message) {}
 
     static final class GodApiException extends RuntimeException {
         GodApiException(String message) { super(message); }

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI God / activity</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header>
+      <div>
+        <p class="label">admin.mcgodmod.com</p>
+        <h1>Server activity</h1>
+      </div>
+      <div class="connection"><i></i><span id="connection">connecting</span></div>
+    </header>
+
+    <main>
+      <section class="summary" aria-label="Activity summary">
+        <div><span>items</span><strong id="event-count">0</strong></div>
+        <div><span>model</span><strong id="model-name">—</strong></div>
+        <div><span>tool calls</span><strong id="tool-count">0</strong></div>
+        <div><span>history</span><strong>persistent</strong></div>
+      </section>
+
+      <nav aria-label="Event filters">
+        <button class="active" data-filter="all">all</button>
+        <button data-filter="input">input</button>
+        <button data-filter="model">model</button>
+        <button data-filter="tool">tools</button>
+        <button data-filter="reasoning">reasoning</button>
+        <button data-filter="error">errors</button>
+      </nav>
+
+      <section id="events" class="events" aria-live="polite"></section>
+      <p id="empty" class="empty">waiting for the server</p>
+    </main>
+
+    <template id="event-template">
+      <article>
+        <div class="event-meta">
+          <span class="sequence"></span>
+          <span class="event-type"></span>
+          <span class="event-player"></span>
+        </div>
+        <pre></pre>
+      </article>
+    </template>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

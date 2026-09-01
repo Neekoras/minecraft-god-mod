@@ -22,7 +22,8 @@ final class QuestManager {
     private final Map<UUID, Quest> quests = new HashMap<>();
     private int ticks;
 
-    QuestManager(MinecraftServer server, QuestStore store, BiConsumer<ServerPlayer, Quest> onDailyFailure) {
+    QuestManager(MinecraftServer server, QuestStore store,
+                 BiConsumer<ServerPlayer, Quest> onDailyFailure) {
         this.server = server;
         this.store = store;
         this.onDailyFailure = onDailyFailure;
@@ -88,7 +89,7 @@ final class QuestManager {
                 if (quest.kind() == Quest.Kind.DAILY) {
                     onDailyFailure.accept(player, quest);
                 } else {
-                    player.sendSystemMessage(Component.literal("§cThe AI God finds you wanting. Punishment falls."));
+                    player.sendSystemMessage(Component.literal("§cpunishment triggered"));
                     runOperatorCommand(quest.punishmentCommand(), player);
                 }
             }
@@ -116,7 +117,7 @@ final class QuestManager {
 
     String status(ServerPlayer player) {
         Quest quest = quests.get(player.getUUID());
-        if (quest == null) return "The AI God has placed no burden upon you.";
+        if (quest == null) return "no active quest";
         String remaining;
         if (quest.deadlineDayTime() > 0) {
             long ticksLeft = Math.max(0, quest.deadlineDayTime() - server.overworld().getOverworldClockTime());
@@ -136,11 +137,11 @@ final class QuestManager {
 
     private void changed(ServerPlayer player, Quest quest) {
         if (quest.complete()) {
-            player.sendSystemMessage(Component.literal("§6Quest complete. The AI God grants your reward."));
+            player.sendSystemMessage(Component.literal("§6quest complete. reward granted"));
             runOperatorCommand(quest.rewardCommand(), player);
             quests.remove(player.getUUID());
         } else {
-            player.sendSystemMessage(Component.literal("§eDivine progress: %d/%d".formatted(quest.progress(), quest.amount())));
+            player.sendSystemMessage(Component.literal("§eprogress: %d/%d".formatted(quest.progress(), quest.amount())));
         }
         save();
     }

@@ -44,6 +44,7 @@ Group=minecraft
 WorkingDirectory=/opt/minecraft
 EnvironmentFile=-/etc/minecraft-ai-god.env
 ExecStart=/usr/lib/jvm/java-25-amazon-corretto/bin/java -Xms1G -Xmx3G -jar fabric-server-launch.jar nogui
+SuccessExitStatus=143
 Restart=always
 RestartSec=10
 TimeoutStopSec=120
@@ -70,9 +71,19 @@ api_key=$(aws ssm get-parameter \
   --with-decryption \
   --query Parameter.Value \
   --output text 2>/dev/null || true)
+admin_password=$(aws ssm get-parameter \
+  --name /minecraft-ai-god/admin-password \
+  --with-decryption \
+  --query Parameter.Value \
+  --output text 2>/dev/null || true)
 if [[ -n "$api_key" ]]; then
   umask 077
-  printf 'OPENAI_API_KEY=%s\n' "$api_key" > /etc/minecraft-ai-god.env
+  {
+    printf 'OPENAI_API_KEY=%s\n' "$api_key"
+    if [[ -n "$admin_password" ]]; then
+      printf 'AI_GOD_ADMIN_PASSWORD=%s\n' "$admin_password"
+    fi
+  } > /etc/minecraft-ai-god.env
 fi
 
 systemctl start minecraft
@@ -125,6 +136,10 @@ systemctl daemon-reload
 systemctl enable minecraft minecraft-backup.timer
 
 if aws s3api head-object --bucket "$bucket" --key latest/ai-god.jar >/dev/null 2>&1; then
+  if aws s3api head-object --bucket "$bucket" --key latest/server-icon.png >/dev/null 2>&1; then
+    aws s3 cp "s3://$bucket/latest/server-icon.png" "$home/server-icon.png"
+    chown minecraft:minecraft "$home/server-icon.png"
+  fi
   /usr/local/bin/minecraft-deploy "s3://$bucket/latest/ai-god.jar"
 else
   systemctl start minecraft

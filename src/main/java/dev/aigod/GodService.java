@@ -1,12 +1,18 @@
 package dev.aigod;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.tree.CommandNode;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.PermissionSet;
+import net.minecraft.stats.Stats;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayDeque;
@@ -25,7 +31,7 @@ final class GodService implements AutoCloseable {
     private final ConversationStore conversationStore;
     private final ArrayDeque<ChatTurn> queue = new ArrayDeque<>();
     private final Map<UUID, Long> pendingDailyDeadline = new HashMap<>();
-    private String previousResponseId;
+    private String conversationId;
     private boolean processing;
 
     GodService(MinecraftServer server, String apiKey, String model, String godName, int compactThreshold,
@@ -36,7 +42,7 @@ final class GodService implements AutoCloseable {
         this.quests = new QuestManager(server, questStore, this::deliverConsequence);
         this.daily = new DailyChallengeManager(server, this, quests, dailyStore);
         this.conversationStore = conversationStore;
-        this.previousResponseId = conversationStore.load();
+        this.conversationId = conversationStore.load();
     }
 
     void hear(ServerPlayer player, String message) {
@@ -50,7 +56,8 @@ final class GodService implements AutoCloseable {
                 A new Minecraft day dawns. Issue today's daily challenge to %s with create_quest now.
                 Make it genuinely fun and genuinely hard, different from their previous challenges, and
                 achievable before sundown from the live state below. Set time_limit_minutes to any value;
-                the deadline is overridden to sundown of this day. Proclaim the challenge in chat.
+                the deadline is overridden to sundown of this day. create_quest posts the one announcement;
+                do not announce it with run_command or repeat it in your reply.
                 """.formatted(player.getGameProfile().name()));
         turn.systemEvent = true;
         turn.onSuccess = onIssued;
@@ -60,12 +67,10 @@ final class GodService implements AutoCloseable {
     }
 
     private void deliverConsequence(ServerPlayer player, Quest quest) {
-        player.sendSystemMessage(Component.literal("§cThe sun sets on your failure. %s passes judgment."
-                .formatted(godName)));
         ChatTurn turn = new ChatTurn(player.getUUID(), """
                 The sun has set and %s FAILED today's daily challenge: "%s" (progress %d/%d %s).
-                Deliver a fitting, dramatic consequence right now using run_command, matched to the
-                challenge they failed (mob ambushes, lightning, traps, losses). Announce it in chat.
+                Deliver a fitting consequence right now using run_command, matched to the challenge
+                they failed (mob ambushes, lightning, traps, losses). Briefly tell them what happened.
                 """.formatted(player.getGameProfile().name(), quest.challenge(),
                 quest.progress(), quest.amount(), quest.target()));
         turn.systemEvent = true;
@@ -79,6 +84,23 @@ final class GodService implements AutoCloseable {
                 %s just died: "%s". React as you see fit: mock them, mourn them, avenge them,
                 punish whatever killed them, or stay_silent if this death bores you.
                 """.formatted(player.getGameProfile().name(), deathMessage));
+        turn.systemEvent = true;
+        queue.addLast(turn);
+        processNext();
+    }
+
+    void playerJoined(ServerPlayer player) {
+        boolean firstJoin = player.getStats().getValue(Stats.CUSTOM.get(Stats.PLAY_TIME)) == 0;
+        ChatTurn turn = new ChatTurn(player.getUUID(), firstJoin
+                ? """
+                  %s has joined this world for the first time. Give them a short, tailored,
+                  in-character introduction. In at most two sentences, make clear that they can
+                  speak normally and that you can act on the world with every server command.
+                  """.formatted(player.getGameProfile().name())
+                : """
+                  %s has returned to the world. Welcome them back in one short, contextual,
+                  in-character sentence using your shared memory and the live state.
+                  """.formatted(player.getGameProfile().name()));
         turn.systemEvent = true;
         queue.addLast(turn);
         processNext();
@@ -105,20 +127,21 @@ final class GodService implements AutoCloseable {
             return;
         }
         processing = true;
-        turn.baseResponseId = previousResponseId;
-        client.respond(player.getUUID(), snapshot(player, turn), previousResponseId)
+        turn.baseConversationId = conversationId;
+        String input = snapshot(player, turn);
+        client.respond(player.getUUID(), input, conversationId)
                 .whenComplete((response, error) -> server.execute(() -> handle(turn, response, error)));
     }
 
     private void handle(ChatTurn turn, OpenAiGodClient.ResponseTurn response, Throwable error) {
         ServerPlayer player = server.getPlayerList().getPlayer(turn.playerId);
         if (error != null || player == null) {
-            previousResponseId = turn.baseResponseId;
+            conversationId = turn.baseConversationId;
             if (player != null) {
+                Throwable cause = error != null && error.getCause() != null ? error.getCause() : error;
                 if (turn.fallbackCommand != null) {
                     quests.runOperatorCommand(turn.fallbackCommand, player);
                 } else if (!turn.systemEvent) {
-                    Throwable cause = error != null && error.getCause() != null ? error.getCause() : error;
                     player.sendSystemMessage(Component.literal("§cThe AI God cannot answer: "
                             + (cause == null ? "speaker vanished" : cause.getMessage())));
                 }
@@ -129,13 +152,17 @@ final class GodService implements AutoCloseable {
             return;
         }
 
-        previousResponseId = response.responseId();
+        conversationId = response.conversationId();
+        conversationStore.save(conversationId);
         boolean requestsSilence = response.toolCalls().stream()
                 .anyMatch(call -> call.name().equals("stay_silent"));
-        if (!response.message().isBlank() && !turn.silent && !requestsSilence) say(response.message());
+        boolean createsQuest = response.toolCalls().stream()
+                .anyMatch(call -> call.name().equals("create_quest"));
+        if (!response.message().isBlank() && !turn.silent && !requestsSilence && !createsQuest) {
+            say(response.message());
+        }
 
         if (response.toolCalls().isEmpty()) {
-            conversationStore.save(previousResponseId);
             pendingDailyDeadline.remove(turn.playerId);
             if (turn.onSuccess != null) turn.onSuccess.run();
             finishTurn();
@@ -146,7 +173,7 @@ final class GodService implements AutoCloseable {
         for (OpenAiGodClient.ToolCall call : response.toolCalls()) {
             results.add(new OpenAiGodClient.ToolResult(call.callId(), execute(turn, player, call)));
         }
-        client.continueWithTools(player.getUUID(), previousResponseId, results)
+        client.continueWithTools(player.getUUID(), conversationId, results)
                 .whenComplete((next, nextError) -> server.execute(() -> handle(turn, next, nextError)));
     }
 
@@ -154,7 +181,9 @@ final class GodService implements AutoCloseable {
         try {
             return switch (call.name()) {
                 case "run_command" -> runOperatorCommand(call.arguments(), player);
-                case "create_quest" -> createQuest(call.arguments(), player);
+                case "command_help" -> commandHelp(call.arguments(), player);
+                case "show_text" -> showText(call.arguments(), player);
+                case "create_quest" -> createQuest(turn, call.arguments(), player);
                 case "complete_challenge" -> completeChallenge(call.arguments());
                 case "cancel_quest" -> cancelQuest(call.arguments());
                 case "stay_silent" -> {
@@ -172,16 +201,75 @@ final class GodService implements AutoCloseable {
         String command = arguments.get("command").getAsString().strip();
         if (command.startsWith("/")) command = command.substring(1);
         command = command.replace("{player}", player.getGameProfile().name());
-        server.getCommands().performPrefixedCommand(
-                player.createCommandSourceStack().withPermission(PermissionSet.ALL_PERMISSIONS), command);
-        return "ok: dispatched as level-4 operator: " + command;
+        CommandOutcome outcome = runCommand(command, player);
+        if (!outcome.known()) return "ok: command accepted for execution: " + command;
+        return outcome.succeeded()
+                ? "ok: command returned %d: %s".formatted(outcome.value(), command)
+                : "error: Minecraft reported command failure: " + command;
     }
 
-    private String createQuest(JsonObject arguments, ServerPlayer player) {
+    private String commandHelp(JsonObject arguments, ServerPlayer player) {
+        String name = arguments.get("command").getAsString().strip();
+        CommandDispatcher<CommandSourceStack> dispatcher = server.getCommands().getDispatcher();
+        CommandSourceStack source = operatorSource(player);
+        if (name.isEmpty()) {
+            return dispatcher.getRoot().getChildren().stream()
+                    .filter(node -> node.canUse(source))
+                    .map(CommandNode::getName)
+                    .sorted()
+                    .toList()
+                    .toString();
+        }
+        CommandNode<CommandSourceStack> node = dispatcher.getRoot().getChild(name);
+        if (node == null || !node.canUse(source)) return "error: no available root command named " + name;
+        String[] usage = dispatcher.getAllUsage(node, source, true);
+        if (usage.length == 0) return name;
+        return name + " " + String.join("\n" + name + " ", usage);
+    }
+
+    private String showText(JsonObject arguments, ServerPlayer player) {
+        String text = MinecraftChatText.fromModel(arguments.get("text").getAsString());
+        if (text.isBlank()) return "error: text cannot be blank";
+        String color = arguments.get("color").getAsString();
+        String command = "execute anchored eyes positioned ^ ^ ^3 run summon minecraft:text_display ~ ~ ~ "
+                + "{billboard:\"center\",text:{text:%s,color:\"%s\"},shadow:true,background:0,Tags:[\"ai_god_text\"]}"
+                .formatted(new JsonPrimitive(text).toString(), color);
+        CommandOutcome outcome = runCommand(command, player);
+        return !outcome.known() || outcome.succeeded()
+                ? "ok: floating text created"
+                : "error: Minecraft could not create the text display";
+    }
+
+    private CommandOutcome runCommand(String command, ServerPlayer player) {
+        CommandSourceStack source = operatorSource(player);
+        try {
+            Commands.validateParseResults(server.getCommands().getDispatcher().parse(command, source));
+        } catch (com.mojang.brigadier.exceptions.CommandSyntaxException exception) {
+            return new CommandOutcome(true, false, 0);
+        }
+        boolean[] called = {false};
+        boolean[] succeeded = {false};
+        int[] value = {0};
+        server.getCommands().performPrefixedCommand(source.withCallback((success, result) -> {
+            called[0] = true;
+            succeeded[0] = success;
+            value[0] = result;
+        }), command);
+        return new CommandOutcome(called[0], succeeded[0], value[0]);
+    }
+
+    private static CommandSourceStack operatorSource(ServerPlayer player) {
+        return player.createCommandSourceStack().withPermission(PermissionSet.ALL_PERMISSIONS);
+    }
+
+    private String createQuest(ChatTurn turn, JsonObject arguments, ServerPlayer player) {
         Long dailyDeadline = pendingDailyDeadline.remove(player.getUUID());
         Quest quest = quests.create(player, arguments, dailyDeadline);
-        player.sendSystemMessage(Component.literal("§eObjective: %s %s × %d."
-                .formatted(quest.objective().name().toLowerCase(), quest.target(), quest.amount())));
+        turn.silent = true;
+        player.sendSystemMessage(Component.literal("§d[%s] §f%s\n§eobjective: %s %s × %d"
+                .formatted(godName, MinecraftChatText.fromModel(quest.challenge()),
+                        quest.objective().name().toLowerCase(),
+                        quest.target(), quest.amount())));
         return "ok: %s quest created for %s: %s (%s %s x%d)%s".formatted(
                 quest.kind() == Quest.Kind.DAILY ? "daily" : "ad-hoc",
                 player.getGameProfile().name(), quest.challenge(),
@@ -217,7 +305,8 @@ final class GodService implements AutoCloseable {
 
     private void say(String message) {
         server.getPlayerList().broadcastSystemMessage(
-                Component.literal("§d[%s] §f".formatted(godName) + message), false);
+                Component.literal("§d[%s] §f".formatted(godName)
+                        + MinecraftChatText.fromModel(message)), false);
     }
 
     private String snapshot(ServerPlayer speaker, ChatTurn turn) {
@@ -232,13 +321,15 @@ final class GodService implements AutoCloseable {
                     .append(" xp=").append(player.experienceLevel)
                     .append(" position=").append("%.0f %.0f %.0f".formatted(
                             player.getX(), player.getY(), player.getZ()))
+                    .append(" rotation=").append("%.1f %.1f".formatted(
+                            player.getYRot(), player.getXRot()))
                     .append(" dimension=").append(player.level().dimension().identifier())
                     .append(" holding=[").append(heldItem(player)).append(']')
                     .append(" inventory=[").append(inventory(player)).append(']')
                     .append(" quest=[").append(quests.status(player)).append(']');
         }
         String lead = turn.systemEvent
-                ? "Divine scheduling event concerning %s: %s"
+                ? "Automatic server event concerning %s: %s"
                 : "New ordinary server chat message from %s: %s";
         return """
                 %s
@@ -280,7 +371,7 @@ final class GodService implements AutoCloseable {
     private static final class ChatTurn {
         private final UUID playerId;
         private final String message;
-        private String baseResponseId;
+        private String baseConversationId;
         private boolean silent;
         private boolean systemEvent;
         private String fallbackCommand;
@@ -292,4 +383,6 @@ final class GodService implements AutoCloseable {
             this.message = message;
         }
     }
+
+    private record CommandOutcome(boolean known, boolean succeeded, int value) {}
 }
