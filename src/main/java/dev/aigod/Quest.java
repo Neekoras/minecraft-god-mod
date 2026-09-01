@@ -16,6 +16,7 @@ final class Quest {
     private final String rewardCommand;
     private final String punishmentCommand;
     private final int collectionBaseline;
+    private String targetPlayer;
     private int progress;
 
     Quest(UUID playerId, String challenge, Objective objective, String target, int amount,
@@ -41,10 +42,22 @@ final class Quest {
         this.collectionBaseline = collectionBaseline;
     }
 
-    boolean record(Objective event, String eventTarget) {
+    boolean record(Objective event, String eventTarget, String victimName) {
         if (objective != event || !target.equals(eventTarget) || complete()) return false;
+        if (targetPlayer != null && !targetPlayer.isBlank()
+                && (victimName == null || !targetPlayer.equalsIgnoreCase(victimName))) {
+            return false;
+        }
         progress++;
         return true;
+    }
+
+    void setTargetPlayer(String name) {
+        this.targetPlayer = name;
+    }
+
+    String targetPlayer() {
+        return targetPlayer == null || targetPlayer.isBlank() ? null : targetPlayer;
     }
 
     /** Progress for objectives polled as a running total (COLLECT inventory count, STAT value). */

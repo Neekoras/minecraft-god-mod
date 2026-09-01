@@ -19,12 +19,14 @@ final class ServerGoal {
     private final long deadlineDayTime;
     private final String rewardCommand;
     private final String punishmentCommand;
+    private final boolean trial;
     private int eventProgress;
     private final Map<UUID, Integer> baselines = new HashMap<>();
     private final Map<UUID, Integer> latest = new HashMap<>();
 
     ServerGoal(String challenge, Quest.Objective objective, String target, int amount,
-               long day, long deadlineDayTime, String rewardCommand, String punishmentCommand) {
+               long day, long deadlineDayTime, String rewardCommand, String punishmentCommand,
+               boolean trial) {
         this.challenge = challenge;
         this.objective = objective;
         this.target = target;
@@ -33,6 +35,7 @@ final class ServerGoal {
         this.deadlineDayTime = deadlineDayTime;
         this.rewardCommand = rewardCommand;
         this.punishmentCommand = punishmentCommand;
+        this.trial = trial;
     }
 
     /** KILL and MINE contributions from any player. Returns true when progress moved. */
@@ -76,6 +79,7 @@ final class ServerGoal {
     int amount() { return amount; }
     long day() { return day; }
     long deadlineDayTime() { return deadlineDayTime; }
+    boolean trial() { return trial; }
     String rewardCommand() { return rewardCommand; }
     String punishmentCommand() { return punishmentCommand; }
 }

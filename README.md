@@ -110,6 +110,12 @@ in chat ("i want a diamond pickaxe") and it offers a contract, a personal
 task with its own reward and punishment, without touching the server goal.
 You have to do something for the god to get something from it.
 
+Every seventh server day is a **Trial Day**: instead of an ordinary goal the
+god stages a boss encounter (a wither, elite named mob waves) and sets a
+matching kill goal, with a far richer reward and a far harsher failure. The
+boss bar is prefixed `TRIAL:` and the morning title turns dark red with a
+wither scream.
+
 The dawn request tells the god the server day number (to scale difficulty),
 how many players are online (to size the total), and the last seven goals (so
 it does not repeat itself); the active goal and history live in
@@ -127,7 +133,9 @@ dusk, night), the server day, and the goal's live progress.
 There are still no commands. Players offer items by saying so in normal chat
 ("take my offering") while holding the tribute; the god sees each player's
 held item in the live snapshot, takes accepted offerings itself via vanilla
-commands, and may respond with gifts, mercy, or `complete_contract`.
+commands, and may respond with gifts, mercy, or `complete_contract`. An
+offering that truly moves the god may be **blessed** instead of taken: the
+held item is replaced with an improved, renamed version of itself.
 
 Player deaths are reported to the god as they happen, with the vanilla death
 message, so it can mock, mourn, avenge, or ignore them.
@@ -140,6 +148,11 @@ message rather than raw summon/effect feedback followed by a duplicate reply.
 The dedicated server cannot access client pixels. Instead, `inspect_view` gives
 the model useful and honest spatial awareness without requiring a client mod or
 pretending a screenshot exists.
+
+Contracts can be dark: the god occasionally offers an **assassination
+contract** naming another online player as the mark (objective KILL, target
+`minecraft:player`, `target_player` set), sometimes with a lethal punishment
+for failing. Only the named victim counts.
 
 Contracts are negotiable in plain chat. Ask for 100 diamonds, get told to
 kill 50 zombies, counter with "what about 40?" and the god may accept the

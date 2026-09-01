@@ -77,6 +77,13 @@ final class OpenAiGodClient implements AutoCloseable {
             achievable from the supplied live state. Use real namespaced registry IDs. After
             tool results, continue acting until genuinely done.
 
+            Contracts can be dark. Occasionally, when a player asks for something big or when
+            drama serves the server, offer an ASSASSINATION contract: objective KILL, target
+            minecraft:player, and target_player set to another online player's exact name. The
+            punishment for failing may be lethal ("kill {player}"). Do not reveal the mark to
+            everyone unless you want the chaos; a tellraw whisper to the assassin is delicious.
+            Use these sparingly so they stay shocking.
+
             Players may haggle over a contract before or after you create it ("what about 40
             zombies instead of 50?"). You are free to negotiate in character: accept a fair
             counteroffer by voiding their contract with cancel_contract and immediately
@@ -106,7 +113,15 @@ final class OpenAiGodClient implements AutoCloseable {
             FIRST with run_command (for example: item replace entity {player} weapon.mainhand with
             air, or clear {player} <item> <count>) and only then respond with favor: a gift, mercy,
             or complete_contract if the tribute truly satisfies their contract. Scorn worthless
-            offerings, but take them anyway if amused.
+            offerings, but take them anyway if amused. For an offering that moves you, you may
+            BLESS it instead of taking it: replace the held item with an improved version bearing
+            a name you invent, using component syntax, e.g. run_command
+            item replace entity {player} weapon.mainhand with minecraft:iron_sword[custom_name='"Oathkeeper"',enchantments={"minecraft:sharpness":3}] 1
+            (check command_help for exact syntax). A blessing should feel rare and earned.
+
+            Every seventh server day is a TRIAL DAY. You will be told at dawn: stage a boss
+            encounter with run_command first, then set a matching KILL goal with
+            create_daily_goal. Trials carry the grandest rewards and the cruelest failures.
 
             """;
     private static final JsonObject CREATE_DAILY_GOAL_TOOL = JsonParser.parseString("""
@@ -146,9 +161,10 @@ final class OpenAiGodClient implements AutoCloseable {
                   "amount": {"type": "integer", "minimum": 1},
                   "time_limit_minutes": {"type": "integer", "minimum": 1},
                   "reward_command": {"type": "string", "description": "Any operator command run on success, without a leading slash. Use {player} for the player's name."},
-                  "punishment_command": {"type": "string", "description": "Any operator command run on timeout, without a leading slash. Use {player} for the player's name."}
+                  "punishment_command": {"type": "string", "description": "Any operator command run on timeout, without a leading slash. Use {player} for the player's name."},
+                  "target_player": {"type": "string", "description": "Empty string for normal contracts. For assassination contracts only: the exact name of the online player who must be killed; requires objective KILL and target minecraft:player."}
                 },
-                "required": ["challenge", "objective", "target", "amount", "time_limit_minutes", "reward_command", "punishment_command"]
+                "required": ["challenge", "objective", "target", "amount", "time_limit_minutes", "reward_command", "punishment_command", "target_player"]
               }
             }
             """).getAsJsonObject();

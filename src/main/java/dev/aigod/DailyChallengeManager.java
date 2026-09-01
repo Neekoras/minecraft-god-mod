@@ -68,13 +68,14 @@ final class DailyChallengeManager {
         if (speaker == null) return;
         lastAttemptTick = ticks;
         pending = true;
-        god.requestDailyGoal(speaker, DayCycle.sundownOf(now), today, List.copyOf(state.pastGoals),
+        boolean trial = today > 0 && today % 7 == 0;
+        god.requestDailyGoal(speaker, DayCycle.sundownOf(now), today, trial, List.copyOf(state.pastGoals),
                 () -> pending = false,
                 () -> pending = false);
     }
 
     /** Called by GodService when the god sets today's goal via create_daily_goal. */
-    ServerGoal createGoal(JsonObject arguments, long deadlineDayTime, long day) {
+    ServerGoal createGoal(JsonObject arguments, long deadlineDayTime, long day, boolean trial) {
         if (state.activeGoal != null) {
             throw new IllegalArgumentException("Today's server goal already exists.");
         }
@@ -87,7 +88,7 @@ final class DailyChallengeManager {
         if (amount < 1) throw new IllegalArgumentException("amount must be positive");
         ServerGoal goal = new ServerGoal(
                 required(arguments, "challenge"), objective, target, amount, day, deadlineDayTime,
-                command(arguments, "reward_command"), command(arguments, "punishment_command"));
+                command(arguments, "reward_command"), command(arguments, "punishment_command"), trial);
         pollTotals(goal);
         state.activeGoal = goal;
         state.remember(day, goal.challenge());
@@ -144,7 +145,8 @@ final class DailyChallengeManager {
 
     /** Keeps the HUD boss bar naming the goal, tracking progress, and reddening toward sundown. */
     private void updateBossBar(ServerGoal goal, long now) {
-        bossBar.setName(Component.literal("%s  •  %d/%d %s".formatted(
+        bossBar.setName(Component.literal("%s%s  •  %d/%d %s".formatted(
+                goal.trial() ? "TRIAL: " : "",
                 goal.challenge(), goal.progress(), goal.amount(), QuestManager.prettyTarget(goal.target()))));
         bossBar.setProgress(goal.amount() == 0 ? 0.0F
                 : Math.min(1.0F, (float) goal.progress() / goal.amount()));
