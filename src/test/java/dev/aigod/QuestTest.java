@@ -27,9 +27,21 @@ class QuestTest {
         Quest quest = new Quest(UUID.randomUUID(), "Gather tribute", Quest.Objective.COLLECT,
                 "minecraft:emerald", 5, Long.MAX_VALUE, "say won", "say lost", 3);
 
-        assertTrue(quest.recordCollected(6));
+        assertTrue(quest.recordTotal(6));
         assertEquals(3, quest.progress());
-        assertTrue(quest.recordCollected(8));
+        assertTrue(quest.recordTotal(8));
+        assertTrue(quest.complete());
+    }
+
+    @Test
+    void statObjectivesProgressFromTheirBaseline() {
+        Quest quest = new Quest(UUID.randomUUID(), "Leap for me", Quest.Objective.STAT,
+                "minecraft:custom/minecraft:jump", 100, Long.MAX_VALUE, 12_000, Quest.Kind.DAILY,
+                "say won", "say lost", 250);
+
+        assertTrue(quest.recordTotal(300));
+        assertEquals(50, quest.progress());
+        assertTrue(quest.recordTotal(350));
         assertTrue(quest.complete());
     }
 

@@ -65,15 +65,22 @@ final class GodService implements AutoCloseable {
         processNext();
     }
 
-    void requestDailyChallenge(ServerPlayer player, long deadlineDayTime, Runnable onIssued, Runnable onFailed) {
+    void requestDailyChallenge(ServerPlayer player, long deadlineDayTime, long day,
+                               List<String> pastChallenges, Runnable onIssued, Runnable onFailed) {
         pendingDailyDeadline.put(player.getUUID(), deadlineDayTime);
+        String history = pastChallenges.isEmpty()
+                ? "This is their first daily challenge ever; make it a memorable initiation."
+                : "Their recent daily challenges, oldest first, which you must NOT repeat or closely echo:\n- "
+                        + String.join("\n- ", pastChallenges);
         ChatTurn turn = new ChatTurn(player.getUUID(), """
-                A new Minecraft day dawns. Issue today's daily challenge to %s with create_quest now.
-                Make it genuinely fun and genuinely hard, different from their previous challenges, and
-                achievable before sundown from the live state below. Set time_limit_minutes to any value;
-                the deadline is overridden to sundown of this day. create_quest posts the one announcement;
-                do not announce it with run_command or repeat it in your reply.
-                """.formatted(player.getGameProfile().name()));
+                A new Minecraft day dawns (server day %d). Issue today's daily challenge to %s with
+                create_quest now. Make it genuinely fun and genuinely hard, scaled to how long the
+                server has lived and to their gear in the live state below, and achievable before
+                sundown. Set time_limit_minutes to any value; the deadline is overridden to sundown
+                of this day. create_quest posts the one announcement; do not announce it with
+                run_command or repeat it in your reply.
+                %s
+                """.formatted(day, player.getGameProfile().name(), history));
         turn.systemEvent = true;
         turn.onSuccess = onIssued;
         turn.onFailure = onFailed;
@@ -461,6 +468,7 @@ final class GodService implements AutoCloseable {
         turn.silent = true;
         player.sendSystemMessage(Component.literal("§d[%s] §f%s"
                 .formatted(godName, MinecraftChatText.fromModel(quest.challenge()))));
+        if (quest.kind() == Quest.Kind.DAILY) dailyFanfare(player, quest);
         return "ok: %s quest created for %s: %s (%s %s x%d)%s".formatted(
                 quest.kind() == Quest.Kind.DAILY ? "daily" : "ad-hoc",
                 player.getGameProfile().name(), quest.challenge(),
@@ -486,6 +494,15 @@ final class GodService implements AutoCloseable {
                     .formatted(name);
         }
         return "ok: quest of %s voided with no reward or punishment".formatted(name);
+    }
+
+    private void dailyFanfare(ServerPlayer player, Quest quest) {
+        String name = player.getGameProfile().name();
+        quests.runOperatorCommand("title " + name + " times 10 70 20", player);
+        quests.runOperatorCommand("title " + name + " subtitle {\"text\":"
+                + new JsonPrimitive(quest.challenge()) + ",\"color\":\"gold\"}", player);
+        quests.runOperatorCommand("title " + name + " title {\"text\":\"Daily Challenge\",\"color\":\"red\",\"bold\":true}", player);
+        quests.runOperatorCommand("playsound minecraft:entity.ender_dragon.growl master " + name, player);
     }
 
     private void finishTurn() {
@@ -533,12 +550,13 @@ final class GodService implements AutoCloseable {
                 %s
 
                 Live server state:
-                difficulty=%s, daytime_ticks=%d, raining=%s, thundering=%s
+                difficulty=%s, day=%d, sky=%s, daytime_ticks=%d, raining=%s, thundering=%s
                 online_players=%d
                 %s%s
                 """.formatted(
                 lead.formatted(speaker.getGameProfile().name(), turn.message),
-                server.getWorldData().getDifficulty(), level.getOverworldClockTime(),
+                server.getWorldData().getDifficulty(), DayCycle.day(level.getOverworldClockTime()),
+                DayCycle.phase(level.getOverworldClockTime()), level.getOverworldClockTime(),
                 level.isRaining(), level.isThundering(),
                 server.getPlayerCount(), players, schedules);
     }

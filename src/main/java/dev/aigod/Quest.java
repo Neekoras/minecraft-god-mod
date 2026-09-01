@@ -3,7 +3,7 @@ package dev.aigod;
 import java.util.UUID;
 
 final class Quest {
-    enum Objective { KILL, MINE, COLLECT }
+    enum Objective { KILL, MINE, COLLECT, STAT }
     enum Kind { ADHOC, DAILY }
     private final UUID playerId;
     private final String challenge;
@@ -47,8 +47,9 @@ final class Quest {
         return true;
     }
 
-    boolean recordCollected(int currentCount) {
-        if (objective != Objective.COLLECT || complete()) return false;
+    /** Progress for objectives polled as a running total (COLLECT inventory count, STAT value). */
+    boolean recordTotal(int currentCount) {
+        if ((objective != Objective.COLLECT && objective != Objective.STAT) || complete()) return false;
         int updated = Math.min(amount, Math.max(0, currentCount - collectionBaseline));
         if (updated == progress) return false;
         progress = updated;

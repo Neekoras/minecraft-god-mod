@@ -54,8 +54,12 @@ The model receives ten custom tools:
   state so ordinary chat such as "say something every minute" works. Schedules
   persist in `ai-god-schedules.json` across server restarts.
 - `cancel_scheduled_event` stops one of those events by ID.
-- `create_quest` creates a timed `KILL`, `MINE`, or `COLLECT` objective. Its
-  success reward and timeout punishment are unrestricted operator commands.
+- `create_quest` creates a timed `KILL`, `MINE`, `COLLECT`, or `STAT`
+  objective. Its success reward and timeout punishment are unrestricted
+  operator commands. `STAT` objectives track any vanilla statistic
+  (`minecraft:custom/minecraft:jump`, `minecraft:crafted/minecraft:bread`,
+  sprint distance, fishing, trading, and hundreds more), which gives daily
+  challenges variety beyond kill/mine/collect.
 - `complete_challenge` marks an online player's active quest complete and runs
   its reward command, for when an offering or deed satisfies the god.
 - `cancel_quest` voids a player's active quest with no reward or punishment,
@@ -94,7 +98,18 @@ keep daily challenges varied, fun, and hard.
   unreachable at sundown, the quest's stored punishment command runs instead,
   so failure is never free.
 
-One challenge is issued per player per day; the last issued day is persisted
+Daily challenges arrive with a full-screen title, a subtitle carrying the
+proclamation, and an ender-dragon growl. The dawn request tells the god the
+server day number (to scale difficulty) and the player's last seven daily
+challenges (so it does not repeat itself); both live in `ai-god-daily.json`.
+
+The god's standing instructions include a command playbook (titles, sounds,
+particles, themed mob summons, effects, `worldborder` as a server-wide
+ultimatum), and `command_help` gives it the real command tree of the running
+server, mods included. The live snapshot also names the sky phase (dawn,
+midday, dusk, night) and the server day.
+
+One challenge is issued per player per day; the issuance state is persisted
 to `ai-god-daily.json` in the world folder so restarts do not double-issue.
 Players who join mid-day receive their challenge on the next scheduler pass.
 If a challenge cannot be issued (API error), the mod retries once a minute
