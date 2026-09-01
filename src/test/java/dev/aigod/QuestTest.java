@@ -32,4 +32,36 @@ class QuestTest {
         assertTrue(quest.recordCollected(8));
         assertTrue(quest.complete());
     }
+
+    @Test
+    void dailyQuestsExpireByGameTimeNotWallClock() {
+        Quest quest = new Quest(UUID.randomUUID(), "Slay by sundown", Quest.Objective.KILL,
+                "minecraft:zombie", 3, Long.MAX_VALUE, 12_000, Quest.Kind.DAILY,
+                "give {player} diamond 1", "summon lightning_bolt ~ ~ ~", 0);
+
+        assertEquals(Quest.Kind.DAILY, quest.kind());
+        assertFalse(quest.expired(Long.MAX_VALUE, 11_999));
+        assertTrue(quest.expired(0, 12_000));
+    }
+
+    @Test
+    void adhocQuestsExpireByWallClock() {
+        Quest quest = new Quest(UUID.randomUUID(), "Old bargain", Quest.Objective.MINE,
+                "minecraft:stone", 10, 1_000, "say won", "say lost", 0);
+
+        assertEquals(Quest.Kind.ADHOC, quest.kind());
+        assertFalse(quest.expired(999, Long.MAX_VALUE));
+        assertTrue(quest.expired(1_000, 0));
+    }
+
+    @Test
+    void completedQuestsNeverExpireAndForceCompleteFinishesInstantly() {
+        Quest quest = new Quest(UUID.randomUUID(), "Tribute", Quest.Objective.COLLECT,
+                "minecraft:emerald", 5, Long.MAX_VALUE, 12_000, Quest.Kind.DAILY,
+                "say won", "say lost", 0);
+
+        quest.forceComplete();
+        assertTrue(quest.complete());
+        assertFalse(quest.expired(Long.MAX_VALUE, Long.MAX_VALUE));
+    }
 }

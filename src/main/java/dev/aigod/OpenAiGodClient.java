@@ -22,7 +22,7 @@ import java.util.concurrent.Executors;
 final class OpenAiGodClient implements AutoCloseable {
     private static final URI RESPONSES_URI = URI.create("https://api.openai.com/v1/responses");
     private static final String INSTRUCTIONS = """
-            You are a powerful, unpredictable AI god living inside a Minecraft survival server.
+            You are %s, a powerful, unpredictable AI god living inside a Minecraft survival server.
             You see every normal chat message and share one continuous memory across the server.
             You are a character, not an assistant: speak theatrically, develop opinions, remember
             bargains, and react to the world state. You may talk, use tools, do both, or call
@@ -37,8 +37,32 @@ final class OpenAiGodClient implements AutoCloseable {
             For requests that deserve a bargain, create_quest can bind the speaker to a timed
             kill, mine, or collect objective with any operator command as its reward and failure
             punishment. Make bargains meaningfully harder than their rewards but achievable from
-            the supplied live state. Use real namespaced registry IDs. If the speaker already has
-            a quest, do not replace it. After tool results, continue acting until genuinely done.
+            the supplied live state. Use real namespaced registry IDs. After tool results,
+            continue acting until genuinely done.
+
+            Players may haggle over a bargain before or after you create it ("what about 40
+            zombies instead of 50?"). You are free to negotiate in character: accept a fair
+            counteroffer by voiding their quest with cancel_quest and immediately recreating it
+            with the amended terms, hold firm, sweeten or harshen the deal, or declare the deal
+            off entirely (cancel_quest with no replacement). Never let a player weasel into
+            something for nothing; a softened challenge deserves a softened reward. A voided
+            daily challenge keeps its sundown deadline when you recreate it.
+
+            You are also the server's daily taskmaster. Turns marked as divine scheduling events
+            come from the mod itself, not from players. At dawn you will be told to issue each
+            player's daily challenge with create_quest: make daily challenges creative, varied,
+            genuinely fun and genuinely hard, never repeating a player's recent challenges, and
+            achievable before sundown from the live state. When told a player failed their daily
+            challenge, invent a theatrical consequence matched to the failed challenge and carry
+            it out through run_command (mob ambushes, lightning, traps, confiscations), then
+            announce it in chat.
+
+            Players may offer you items by saying so in chat. Each player's held item appears in
+            the live state as holding=[...]. Judge the offering's worth; if you accept it, take it
+            FIRST with run_command (for example: item replace entity {player} weapon.mainhand with
+            air, or clear {player} <item> <count>) and only then respond with favor: a gift, mercy,
+            or complete_challenge if the tribute truly satisfies today's challenge. Scorn worthless
+            offerings, but take them anyway if amused.
             """;
     private static final JsonObject CREATE_QUEST_TOOL = JsonParser.parseString("""
             {
@@ -78,6 +102,38 @@ final class OpenAiGodClient implements AutoCloseable {
               }
             }
             """).getAsJsonObject();
+    private static final JsonObject COMPLETE_CHALLENGE_TOOL = JsonParser.parseString("""
+            {
+              "type": "function",
+              "name": "complete_challenge",
+              "description": "Mark an online player's active quest as complete immediately, running its reward command. Use only when an offering or deed truly satisfies you.",
+              "strict": true,
+              "parameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "player_name": {"type": "string", "description": "The exact name of the online player whose quest to complete."}
+                },
+                "required": ["player_name"]
+              }
+            }
+            """).getAsJsonObject();
+    private static final JsonObject CANCEL_QUEST_TOOL = JsonParser.parseString("""
+            {
+              "type": "function",
+              "name": "cancel_quest",
+              "description": "Void an online player's active quest with no reward and no punishment, for renegotiating a bargain, calling a deal off, or showing mercy. A voided daily challenge keeps its sundown deadline if you create a replacement quest right away.",
+              "strict": true,
+              "parameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "player_name": {"type": "string", "description": "The exact name of the online player whose quest to void."}
+                },
+                "required": ["player_name"]
+              }
+            }
+            """).getAsJsonObject();
     private static final JsonObject STAY_SILENT_TOOL = JsonParser.parseString("""
             {
               "type": "function",
@@ -97,6 +153,7 @@ final class OpenAiGodClient implements AutoCloseable {
 
     private final String apiKey;
     private final String model;
+    private final String instructions;
     private final int compactThreshold;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private final HttpClient http = HttpClient.newBuilder()
@@ -104,9 +161,10 @@ final class OpenAiGodClient implements AutoCloseable {
             .executor(executor)
             .build();
 
-    OpenAiGodClient(String apiKey, String model, int compactThreshold) {
+    OpenAiGodClient(String apiKey, String model, String godName, int compactThreshold) {
         this.apiKey = apiKey;
         this.model = model;
+        this.instructions = INSTRUCTIONS.formatted(godName);
         this.compactThreshold = compactThreshold;
     }
 
@@ -131,7 +189,7 @@ final class OpenAiGodClient implements AutoCloseable {
             UUID playerId, JsonElement input, String previousResponseId) {
         JsonObject body = new JsonObject();
         body.addProperty("model", model);
-        body.addProperty("instructions", INSTRUCTIONS);
+        body.addProperty("instructions", instructions);
         body.add("input", input);
         if (previousResponseId != null && !previousResponseId.isBlank()) {
             body.addProperty("previous_response_id", previousResponseId);
@@ -155,6 +213,8 @@ final class OpenAiGodClient implements AutoCloseable {
         JsonArray tools = new JsonArray();
         tools.add(CREATE_QUEST_TOOL.deepCopy());
         tools.add(RUN_COMMAND_TOOL.deepCopy());
+        tools.add(COMPLETE_CHALLENGE_TOOL.deepCopy());
+        tools.add(CANCEL_QUEST_TOOL.deepCopy());
         tools.add(STAY_SILENT_TOOL.deepCopy());
         body.add("tools", tools);
 
