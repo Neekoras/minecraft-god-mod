@@ -15,12 +15,6 @@ The god is intentionally not sandboxed. It can execute **every command installed
 on the server with permission level 4**, including commands from other mods and
 data packs.
 
-> [!CAUTION]
-> This is remote, model-controlled operator access. It can kill players, clear
-> inventories, change game rules, ban users, stop the server, or destroy the
-> world. Use a dedicated server, backups, and an API key you can revoke. Do not
-> install it on a world you are unwilling to lose.
-
 ## Join the live server
 
 Open **Minecraft: Java Edition 1.21.1**, choose **Multiplayer**, and add:
@@ -82,8 +76,14 @@ patterns.
 - Java 21 or newer
 - An OpenAI API key with access to the configured model
 
-The default model is `gpt-5.4-mini` because it supports the Responses API and
-function calling. Set `AI_GOD_MODEL` to use another compatible model.
+The default model is
+[`gpt-5.6-luna`](https://developers.openai.com/api/docs/models/gpt-5.6-luna)
+with reasoning effort `none`. It supports the Responses API and function
+calling while keeping chat responsive. Four live custom-tool trials per model
+from the production EC2 server measured median response times of 0.932 seconds
+for `gpt-5.4-mini`, 1.160 seconds for `gpt-5.6-luna`, and 2.442 seconds for
+`gpt-5.6-terra`, all with reasoning disabled. Set `AI_GOD_MODEL` to use another
+compatible model; GPT-5.6 overrides also use reasoning effort `none`.
 
 ## Build
 
@@ -106,7 +106,7 @@ Provide configuration through the server process environment:
 
 ```bash
 export OPENAI_API_KEY="sk-..."
-export AI_GOD_MODEL="gpt-5.4-mini"                 # optional
+export AI_GOD_MODEL="gpt-5.6-luna"                 # optional
 export AI_GOD_COMPACT_THRESHOLD="100000"          # optional
 java -jar fabric-server-launch.jar nogui
 ```

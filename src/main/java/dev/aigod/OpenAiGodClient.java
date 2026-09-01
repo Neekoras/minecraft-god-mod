@@ -139,6 +139,11 @@ final class OpenAiGodClient implements AutoCloseable {
         body.addProperty("store", true);
         body.addProperty("parallel_tool_calls", true);
         body.addProperty("safety_identifier", "minecraft_" + playerId);
+        if (model.startsWith("gpt-5.6")) {
+            JsonObject reasoning = new JsonObject();
+            reasoning.addProperty("effort", "none");
+            body.add("reasoning", reasoning);
+        }
 
         JsonArray contextManagement = new JsonArray();
         JsonObject compaction = new JsonObject();
