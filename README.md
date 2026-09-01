@@ -29,13 +29,17 @@ server chat; there is no `/god` command or special prefix.
 
 ## What it can do
 
-The model receives three custom tools:
+The model receives five custom tools:
 
 - `run_command` executes any installed server command as the speaking player
   with level-4 permission. Relative coordinates and selectors therefore start
   from that player. The model can call it repeatedly in one turn.
 - `create_quest` creates a timed `KILL`, `MINE`, or `COLLECT` objective. Its
   success reward and timeout punishment are unrestricted operator commands.
+- `complete_challenge` marks an online player's active quest complete and runs
+  its reward command, for when an offering or deed satisfies the god.
+- `cancel_quest` voids a player's active quest with no reward or punishment,
+  so the god can renegotiate bargains, call deals off, or show mercy.
 - `stay_silent` ends the turn without putting a god message in chat.
 
 Tool results go back to the model. It can issue more commands after seeing a
@@ -52,6 +56,41 @@ The god sees live context on every turn:
 
 Chat turns are queued in order, so simultaneous messages cannot fork or race
 the god's shared memory.
+
+## Daily challenges
+
+Every Minecraft morning the god issues each online player a daily challenge,
+created through the normal quest system but with its deadline pinned to
+**sundown of that day** (game time, not wall-clock). The god is instructed to
+keep daily challenges varied, fun, and hard.
+
+- Complete it before sundown and the quest's reward command runs as usual.
+- Fail, and the god itself is told about the failure and invents a consequence
+  on the spot, matched to the challenge it set: mob ambushes, lightning,
+  confiscations, whatever it decides through `run_command`. If the API is
+  unreachable at sundown, the quest's stored punishment command runs instead,
+  so failure is never free.
+
+One challenge is issued per player per day; the last issued day is persisted
+to `ai-god-daily.json` in the world folder so restarts do not double-issue.
+Players who join mid-day receive their challenge on the next scheduler pass.
+If a challenge cannot be issued (API error), the mod retries once a minute
+until sundown.
+
+## Offerings and deaths
+
+There are still no commands. Players offer items by saying so in normal chat
+("take my offering") while holding the tribute; the god sees each player's
+held item in the live snapshot, takes accepted offerings itself via vanilla
+commands, and may respond with gifts, mercy, or `complete_challenge`.
+
+Player deaths are reported to the god as they happen, with the vanilla death
+message, so it can mock, mourn, avenge, or ignore them.
+
+Bargains are negotiable in plain chat. Ask for 100 diamonds, get told to kill
+50 zombies, counter with "what about 40?" and the god may accept the amended
+deal (voiding and recreating the quest), hold firm, or declare the deal off.
+A renegotiated daily challenge keeps its sundown deadline.
 
 ## Memory and compaction
 
@@ -107,6 +146,7 @@ Provide configuration through the server process environment:
 ```bash
 export OPENAI_API_KEY="sk-..."
 export AI_GOD_MODEL="gpt-5.6-luna"                 # optional
+export AI_GOD_NAME="AI God"                        # optional display name and persona name
 export AI_GOD_COMPACT_THRESHOLD="100000"          # optional
 java -jar fabric-server-launch.jar nogui
 ```
@@ -139,7 +179,10 @@ Quests are persisted to `ai-god-quests.json` in the world folder.
 - `MINE` advances when the quest owner breaks the target block.
 - `COLLECT` counts matching items gained after the quest was created.
 - Completion runs the stored reward command.
-- An expired quest runs its punishment when that player is online, then clears.
+- An expired ad-hoc quest runs its punishment when that player is online, then
+  clears. An expired daily challenge instead hands the failure back to the god
+  to improvise a consequence, falling back to the stored punishment command if
+  the API call fails.
 
 `{player}` in tool and quest commands is replaced with the current player's
 exact Minecraft name.
