@@ -3,6 +3,17 @@ name: Build and deploy
 on:
   push:
     branches: [main]
+    paths:
+      - ".github/workflows/deploy.yml"
+      - "build.gradle"
+      - "gradle/**"
+      - "gradle.properties"
+      - "gradlew"
+      - "gradlew.bat"
+      - "settings.gradle"
+      - "src/**"
+      - "deploy/**"
+      - "server-icon.png"
   workflow_dispatch:
 
 permissions:

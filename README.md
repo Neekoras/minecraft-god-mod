@@ -82,8 +82,9 @@ The god sees live context on every turn:
 
 Chat turns are queued in order, so simultaneous messages cannot fork or race
 the god's shared memory. The room is universal: the mod broadcasts every player
-message to the whole server once, every player feeds the same conversation, and
-every god response is visible to everyone. Player names and UUIDs remain attached
+message directly to every connected client, regardless of that client's chat
+visibility setting. Every player feeds the same conversation, and every god
+response is visible to everyone. Player names and UUIDs remain attached
 to their turns, so first-person language belongs to the current speaker and one
 player's inventory or contract is not attributed to another. Model-written chat
 is kept as plain Minecraft text: no Markdown renderer, headings, or emoji-heavy
@@ -316,11 +317,12 @@ Systems Manager is used because the instance can retrieve the OpenAI key and
 receive deployment commands through its AWS identity. The key is never stored
 in GitHub Actions, the AMI, user-data, or this repository.
 
-Every push to `main` runs [.github/workflows/deploy.yml](.github/workflows/deploy.yml).
-The workflow tests and builds the exact commit, uploads its JAR, asks Systems
-Manager to deploy it, waits for the command, and fails if the restart fails.
-Expect roughly 15 seconds of downtime during a deploy. No approval click is
-required.
+Runtime changes pushed to `main` run [.github/workflows/deploy.yml](.github/workflows/deploy.yml).
+Website and documentation-only commits do not restart Minecraft. The workflow
+tests and builds the exact commit, uploads its JAR, and downloads everything to
+the server before the one required Java/Fabric restart. The persistent
+`/opt/minecraft/world` directory is never replaced by deployment. No approval
+click is required.
 
 Useful operator commands:
 

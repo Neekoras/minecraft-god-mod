@@ -7,6 +7,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.tree.CommandNode;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.MinecraftServer;
@@ -61,8 +62,8 @@ final class GodService implements AutoCloseable {
     }
 
     void hear(ServerPlayer player, String message) {
-        server.getPlayerList().broadcastSystemMessage(Component.literal("<%s> %s"
-                .formatted(player.getGameProfile().name(), message)), false);
+        broadcastChat(Component.literal("<%s> %s"
+                .formatted(player.getGameProfile().name(), message)));
         queue.addLast(new ChatTurn(player.getUUID(), message));
         processNext();
     }
@@ -422,6 +423,7 @@ final class GodService implements AutoCloseable {
             value.addProperty("dimension", player.level().dimension().identifier().toString());
             value.addProperty("holding", heldItem(player));
             value.addProperty("quest", quests.status(player));
+            value.addProperty("chat_visibility", player.getChatVisibility().name().toLowerCase());
             players.add(value);
         }
         state.add("players", players);
@@ -503,9 +505,15 @@ final class GodService implements AutoCloseable {
     }
 
     private void say(String message) {
-        server.getPlayerList().broadcastSystemMessage(
-                Component.literal("§d[%s] §f".formatted(godName)
-                        + MinecraftChatText.fromModel(message)), false);
+        broadcastChat(Component.literal("§d[%s] §f".formatted(godName)
+                + MinecraftChatText.fromModel(message)));
+    }
+
+    private void broadcastChat(Component message) {
+        server.sendSystemMessage(message);
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            player.connection.send(new ClientboundSystemChatPacket(message, false));
+        }
     }
 
     private String snapshot(ServerPlayer speaker, ChatTurn turn) {
