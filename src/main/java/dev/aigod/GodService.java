@@ -63,8 +63,29 @@ final class GodService implements AutoCloseable {
     }
 
     void hear(ServerPlayer player, String message) {
-        queue.addLast(new ChatTurn(player.getUUID(), message));
+        long nowMillis = System.currentTimeMillis();
+        ChatTurn pending = pendingChatTurn(player.getUUID(), nowMillis);
+        if (pending == null) {
+            queue.addLast(new ChatTurn(player.getUUID(), message, nowMillis));
+        } else {
+            pending.appendMessage(message, nowMillis);
+        }
         processNext();
+    }
+
+    private ChatTurn pendingChatTurn(UUID playerId, long nowMillis) {
+        Iterator<ChatTurn> turns = queue.descendingIterator();
+        ChatTurn newest = null;
+        int pendingCount = 0;
+        while (turns.hasNext()) {
+            ChatTurn turn = turns.next();
+            if (!turn.systemEvent && !turn.started && turn.playerId.equals(playerId)) {
+                if (newest == null) newest = turn;
+                pendingCount++;
+                if (turn.isRecent(nowMillis)) return turn;
+            }
+        }
+        return pendingCount >= ChatTurn.MAX_PENDING_PER_PLAYER ? newest : null;
     }
 
     void recordKill(ServerPlayer player, String entityId) {
@@ -205,6 +226,7 @@ final class GodService implements AutoCloseable {
             return;
         }
         processing = true;
+        turn.started = true;
         turn.baseConversationId = conversationId;
         String input = snapshot(player, turn);
         client.respond(player.getUUID(), input, conversationId)
@@ -618,9 +640,9 @@ final class GodService implements AutoCloseable {
                 %s%s
                 """.formatted(
                 turn.systemEvent
-                        ? lead.formatted(speaker.getGameProfile().name(), turn.message)
+                        ? lead.formatted(speaker.getGameProfile().name(), turn.message())
                         : lead.formatted(speaker.getGameProfile().name(), speaker.getUUID(),
-                                quests.status(speaker), turn.message),
+                                quests.status(speaker), turn.message()),
                 server.getWorldData().getDifficulty(), DayCycle.day(level.getOverworldClockTime()),
                 DayCycle.phase(level.getOverworldClockTime()), level.getOverworldClockTime(),
                 level.isRaining(), level.isThundering(),
@@ -650,9 +672,16 @@ final class GodService implements AutoCloseable {
         client.close();
     }
 
-    private static final class ChatTurn {
+    static final class ChatTurn {
+        private static final long BURST_WINDOW_MILLIS = 2_000;
+        private static final int MAX_PENDING_PER_PLAYER = 2;
+        private static final int MAX_BURST_MESSAGES = 5;
+
         private final UUID playerId;
-        private final String message;
+        private final List<BurstMessage> messages = new ArrayList<>();
+        private final long firstMessageAtMillis;
+        private long lastMessageAtMillis;
+        private boolean started;
         private String baseConversationId;
         private boolean silent;
         private boolean systemEvent;
@@ -660,9 +689,72 @@ final class GodService implements AutoCloseable {
         private Runnable onSuccess;
         private Runnable onFailure;
 
-        private ChatTurn(UUID playerId, String message) {
+        ChatTurn(UUID playerId, String message) {
+            this(playerId, message, System.currentTimeMillis());
+        }
+
+        ChatTurn(UUID playerId, String message, long atMillis) {
             this.playerId = playerId;
-            this.message = message;
+            this.firstMessageAtMillis = atMillis;
+            this.lastMessageAtMillis = atMillis;
+            this.messages.add(new BurstMessage(message, atMillis));
+        }
+
+        void appendMessage(String message) {
+            appendMessage(message, System.currentTimeMillis());
+        }
+
+        void appendMessage(String message, long atMillis) {
+            lastMessageAtMillis = atMillis;
+            BurstMessage last = messages.getLast();
+            if (last.text.equals(message)) {
+                last.repeat(atMillis);
+                return;
+            }
+            if (messages.size() < MAX_BURST_MESSAGES) {
+                messages.add(new BurstMessage(message, atMillis));
+            } else {
+                messages.set(MAX_BURST_MESSAGES - 1, new BurstMessage(message, atMillis));
+            }
+        }
+
+        boolean isRecent(long nowMillis) {
+            return nowMillis - lastMessageAtMillis <= BURST_WINDOW_MILLIS;
+        }
+
+        String message() {
+            BurstMessage only = messages.getFirst();
+            if (messages.size() == 1 && only.repetitions == 1) return only.text;
+            StringBuilder burst = new StringBuilder("rapid messages from this player over ")
+                    .append(lastMessageAtMillis - firstMessageAtMillis)
+                    .append("ms, oldest to newest:");
+            for (BurstMessage item : messages) {
+                burst.append("\n- +").append(item.firstAtMillis - firstMessageAtMillis)
+                        .append("ms: ").append(item.text);
+                if (item.repetitions > 1) {
+                    burst.append(" (repeated ").append(item.repetitions).append(" times through +")
+                            .append(item.lastAtMillis - firstMessageAtMillis).append("ms)");
+                }
+            }
+            return burst.toString();
+        }
+
+        private static final class BurstMessage {
+            private final String text;
+            private final long firstAtMillis;
+            private long lastAtMillis;
+            private int repetitions = 1;
+
+            private BurstMessage(String text, long atMillis) {
+                this.text = text;
+                this.firstAtMillis = atMillis;
+                this.lastAtMillis = atMillis;
+            }
+
+            private void repeat(long atMillis) {
+                repetitions++;
+                lastAtMillis = atMillis;
+            }
         }
     }
 
