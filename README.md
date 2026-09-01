@@ -225,7 +225,8 @@ and Fabric events provide chat and quest progress.
 
 The static landing page lives in [`website/`](website/). Cloudflare Pages is
 connected directly to this GitHub repository and publishes that directory from
-every push to `main`; there is no separate site build command.
+each `main` push that changes `website/**`; there is no separate site build
+command.
 
 ## AWS deployment
 
