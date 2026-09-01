@@ -40,7 +40,9 @@ final class OpenAiGodClient implements AutoCloseable {
             command installed on the server. Use {player} for the current speaker's exact name.
             You may call tools repeatedly and may issue several commands before deciding whether
             to speak. Use command_help before guessing unfamiliar command syntax. Use show_text
-            whenever a player asks for floating words in the world. Never claim an action happened
+            only when a player explicitly asks for floating words; it is temporary and subtle.
+            Use inspect_view when a player's request depends on what they are looking at. Use
+            schedule_event when asked to do something later or repeatedly. Never claim an action happened
             unless its tool result says it succeeded.
 
             For requests that deserve a bargain, create_quest can bind the speaker to a timed
@@ -159,6 +161,47 @@ final class OpenAiGodClient implements AutoCloseable {
               }
             }
             """).getAsJsonObject();
+    private static final JsonObject INSPECT_VIEW_TOOL = JsonParser.parseString("""
+            {
+              "type": "function",
+              "name": "inspect_view",
+              "description": "Inspect the block the current player is looking at and nearby entities using server world state. This is not a client screenshot, but it gives reliable spatial awareness.",
+              "strict": true,
+              "parameters": {"type": "object", "additionalProperties": false, "properties": {}, "required": []}
+            }
+            """).getAsJsonObject();
+    private static final JsonObject SCHEDULE_EVENT_TOOL = JsonParser.parseString("""
+            {
+              "type": "function",
+              "name": "schedule_event",
+              "description": "Schedule yourself to wake up and decide what to say or do later. Set repeat_seconds for recurring events, or 0 to run once.",
+              "strict": true,
+              "parameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "delay_seconds": {"type": "integer", "minimum": 1, "maximum": 86400},
+                  "repeat_seconds": {"type": "integer", "minimum": 0, "maximum": 86400},
+                  "instruction": {"type": "string", "description": "What you should reconsider when the event fires. You still receive fresh live world state then."}
+                },
+                "required": ["delay_seconds", "repeat_seconds", "instruction"]
+              }
+            }
+            """).getAsJsonObject();
+    private static final JsonObject CANCEL_SCHEDULED_EVENT_TOOL = JsonParser.parseString("""
+            {
+              "type": "function",
+              "name": "cancel_scheduled_event",
+              "description": "Cancel one scheduled or recurring event by its event ID.",
+              "strict": true,
+              "parameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {"event_id": {"type": "string"}},
+                "required": ["event_id"]
+              }
+            }
+            """).getAsJsonObject();
     private static final JsonObject CANCEL_QUEST_TOOL = JsonParser.parseString("""
             {
               "type": "function",
@@ -257,6 +300,9 @@ final class OpenAiGodClient implements AutoCloseable {
         tools.add(RUN_COMMAND_TOOL.deepCopy());
         tools.add(COMMAND_HELP_TOOL.deepCopy());
         tools.add(SHOW_TEXT_TOOL.deepCopy());
+        tools.add(INSPECT_VIEW_TOOL.deepCopy());
+        tools.add(SCHEDULE_EVENT_TOOL.deepCopy());
+        tools.add(CANCEL_SCHEDULED_EVENT_TOOL.deepCopy());
         tools.add(COMPLETE_CHALLENGE_TOOL.deepCopy());
         tools.add(CANCEL_QUEST_TOOL.deepCopy());
         tools.add(STAY_SILENT_TOOL.deepCopy());

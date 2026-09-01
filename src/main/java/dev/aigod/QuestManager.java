@@ -149,7 +149,9 @@ final class QuestManager {
     void runOperatorCommand(String command, ServerPlayer player) {
         String expanded = command.replace("{player}", player.getGameProfile().name());
         server.getCommands().performPrefixedCommand(
-                player.createCommandSourceStack().withPermission(PermissionSet.ALL_PERMISSIONS),
+                player.createCommandSourceStack()
+                        .withPermission(PermissionSet.ALL_PERMISSIONS)
+                        .withSuppressedOutput(),
                 expanded.startsWith("/") ? expanded.substring(1) : expanded
         );
     }

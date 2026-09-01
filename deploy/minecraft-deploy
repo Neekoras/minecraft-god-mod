@@ -1,0 +1,34 @@
+#!/bin/bash
+set -euo pipefail
+export AWS_DEFAULT_REGION=us-west-1
+
+artifact_uri=$1
+temporary=/opt/minecraft/mods/ai-god.jar.new
+trap 'rm -f "$temporary"; systemctl start minecraft' EXIT
+systemctl stop minecraft || true
+aws s3 cp "$artifact_uri" "$temporary"
+chown minecraft:minecraft "$temporary"
+mv "$temporary" /opt/minecraft/mods/ai-god.jar
+
+api_key=$(aws ssm get-parameter \
+  --name /minecraft-ai-god/openai-api-key \
+  --with-decryption \
+  --query Parameter.Value \
+  --output text)
+admin_password=$(aws ssm get-parameter \
+  --name /minecraft-ai-god/admin-password \
+  --with-decryption \
+  --query Parameter.Value \
+  --output text 2>/dev/null || true)
+umask 077
+{
+  printf 'OPENAI_API_KEY=%s\n' "$api_key"
+  if [[ -n "$admin_password" ]]; then
+    printf 'AI_GOD_ADMIN_PASSWORD=%s\n' "$admin_password"
+  fi
+} > /etc/minecraft-ai-god.env
+
+systemctl start minecraft
+sleep 15
+systemctl is-active --quiet minecraft
+trap - EXIT

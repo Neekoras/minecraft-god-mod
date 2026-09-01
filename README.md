@@ -10,7 +10,6 @@ offer a bargain, or remain completely silent.
 ```text
 <Dennis> can I have a diamond pickaxe?
 [AI God] bring me twelve sheep before sunset. then we'll talk pickaxes.
-objective: kill minecraft:sheep × 12
 ```
 
 The god is intentionally not sandboxed. It can execute **every command installed
@@ -39,15 +38,22 @@ DNS service record to reach the game server, so players still enter only
 
 ## What it can do
 
-The model receives seven custom tools:
+The model receives ten custom tools:
 
 - `run_command` executes any installed server command as the speaking player
   with level-4 permission. Relative coordinates and selectors therefore start
   from that player. The model can call it repeatedly in one turn.
 - `command_help` reads the running server's real Brigadier command tree before
   the model uses unfamiliar vanilla, mod, or data-pack syntax.
-- `show_text` creates native `text_display` entities without making the model
-  hand-write version-sensitive entity data.
+- `show_text` creates short-lived native `text_display` entities without making
+  the model hand-write version-sensitive entity data. Old text is removed first
+  and new text disappears after 12 seconds.
+- `inspect_view` reports the block in the player's crosshair and nearby entities
+  from authoritative server state.
+- `schedule_event` wakes the model later, once or repeatedly, with fresh world
+  state so ordinary chat such as "say something every minute" works. Schedules
+  persist in `ai-god-schedules.json` across server restarts.
+- `cancel_scheduled_event` stops one of those events by ID.
 - `create_quest` creates a timed `KILL`, `MINE`, or `COLLECT` objective. Its
   success reward and timeout punishment are unrestricted operator commands.
 - `complete_challenge` marks an online player's active quest complete and runs
@@ -103,6 +109,15 @@ commands, and may respond with gifts, mercy, or `complete_challenge`.
 
 Player deaths are reported to the god as they happen, with the vanilla death
 message, so it can mock, mourn, avenge, or ignore them.
+
+Visible advancement unlocks are also reported. The god can congratulate the
+player, trigger native particles or sounds, do something stranger, or stay
+silent. Operator command output is suppressed; players see the god's final chat
+message rather than raw summon/effect feedback followed by a duplicate reply.
+
+The dedicated server cannot access client pixels. Instead, `inspect_view` gives
+the model useful and honest spatial awareness without requiring a client mod or
+pretending a screenshot exists.
 
 Bargains are negotiable in plain chat. Ask for 100 diamonds, get told to kill
 50 zombies, counter with "what about 40?" and the god may accept the amended
@@ -251,6 +266,8 @@ authentication with username `admin` and that password. It does not
 create another log or database. It reads the native OpenAI Conversation directly,
 showing recent player/server inputs, model replies, tool arguments, tool results,
 exposed reasoning summaries, and tool errors.
+It also shows live players, hearts, food, coordinates, held items, active quests,
+weather, pending AI turns, and scheduled events.
 OpenAI does not expose private chain-of-thought, so the dashboard does not claim
 to show it.
 

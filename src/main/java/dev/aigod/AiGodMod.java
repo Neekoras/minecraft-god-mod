@@ -45,15 +45,18 @@ public final class AiGodMod implements ModInitializer {
                     worldPath.resolve("ai-god-daily.json"), LOGGER);
             ConversationStore conversationStore = new ConversationStore(
                     worldPath.resolve("ai-god-conversation.txt"), LOGGER);
+            ScheduleStore scheduleStore = new ScheduleStore(
+                    worldPath.resolve("ai-god-schedules.json"), LOGGER);
             god = new GodService(server, apiKey, model, godName, compactThreshold,
-                    store, dailyStore, conversationStore);
+                    store, dailyStore, conversationStore, scheduleStore);
             String adminPassword = System.getenv("AI_GOD_ADMIN_PASSWORD");
             if (adminPassword == null || adminPassword.isBlank()) {
                 LOGGER.warn("Admin page disabled: AI_GOD_ADMIN_PASSWORD is not set");
             } else {
                 try {
                     admin = new AdminServer(apiKey, model, conversationStore,
-                            positiveEnvironmentInt("AI_GOD_ADMIN_PORT", 8765), adminPassword, LOGGER);
+                            positiveEnvironmentInt("AI_GOD_ADMIN_PORT", 8765), adminPassword,
+                            god::adminState, LOGGER);
                 } catch (java.io.IOException exception) {
                     LOGGER.error("Could not start the local AI God admin server", exception);
                 }

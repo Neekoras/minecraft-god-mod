@@ -1,5 +1,6 @@
 package dev.aigod;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.mojang.brigadier.CommandDispatcher;
@@ -14,12 +15,17 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.PermissionSet;
 import net.minecraft.stats.Stats;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 final class GodService implements AutoCloseable {
@@ -29,19 +35,28 @@ final class GodService implements AutoCloseable {
     private final QuestManager quests;
     private final DailyChallengeManager daily;
     private final ConversationStore conversationStore;
+    private final ScheduleStore scheduleStore;
     private final ArrayDeque<ChatTurn> queue = new ArrayDeque<>();
     private final Map<UUID, Long> pendingDailyDeadline = new HashMap<>();
+    private final List<DeferredCommand> deferredCommands = new ArrayList<>();
+    private final List<ScheduledEvent> scheduledEvents = new ArrayList<>();
+    private final Map<UUID, Set<String>> completedAdvancements = new HashMap<>();
     private String conversationId;
     private boolean processing;
+    private int ticks;
+    private volatile String adminState = "{\"players\":[],\"scheduled_events\":[]}";
 
     GodService(MinecraftServer server, String apiKey, String model, String godName, int compactThreshold,
-               QuestStore questStore, DailyStore dailyStore, ConversationStore conversationStore) {
+               QuestStore questStore, DailyStore dailyStore, ConversationStore conversationStore,
+               ScheduleStore scheduleStore) {
         this.server = server;
         this.godName = godName;
         this.client = new OpenAiGodClient(apiKey, model, godName, compactThreshold);
         this.quests = new QuestManager(server, questStore, this::deliverConsequence);
         this.daily = new DailyChallengeManager(server, this, quests, dailyStore);
         this.conversationStore = conversationStore;
+        this.scheduleStore = scheduleStore;
+        this.scheduledEvents.addAll(scheduleStore.load());
         this.conversationId = conversationStore.load();
     }
 
@@ -90,6 +105,7 @@ final class GodService implements AutoCloseable {
     }
 
     void playerJoined(ServerPlayer player) {
+        completedAdvancements.put(player.getUUID(), currentAdvancements(player));
         boolean firstJoin = player.getStats().getValue(Stats.CUSTOM.get(Stats.PLAY_TIME)) == 0;
         ChatTurn turn = new ChatTurn(player.getUUID(), firstJoin
                 ? """
@@ -109,6 +125,17 @@ final class GodService implements AutoCloseable {
     void tick() {
         quests.tick();
         daily.tick();
+        ticks++;
+        runDeferredCommands();
+        runScheduledEvents();
+        if (ticks % 20 == 0) {
+            detectAdvancements();
+            refreshAdminState();
+        }
+    }
+
+    String adminState() {
+        return adminState;
     }
 
     QuestManager quests() {
@@ -183,6 +210,9 @@ final class GodService implements AutoCloseable {
                 case "run_command" -> runOperatorCommand(call.arguments(), player);
                 case "command_help" -> commandHelp(call.arguments(), player);
                 case "show_text" -> showText(call.arguments(), player);
+                case "inspect_view" -> inspectView(player);
+                case "schedule_event" -> scheduleEvent(call.arguments(), player);
+                case "cancel_scheduled_event" -> cancelScheduledEvent(call.arguments());
                 case "create_quest" -> createQuest(turn, call.arguments(), player);
                 case "complete_challenge" -> completeChallenge(call.arguments());
                 case "cancel_quest" -> cancelQuest(call.arguments());
@@ -231,13 +261,174 @@ final class GodService implements AutoCloseable {
         String text = MinecraftChatText.fromModel(arguments.get("text").getAsString());
         if (text.isBlank()) return "error: text cannot be blank";
         String color = arguments.get("color").getAsString();
-        String command = "execute anchored eyes positioned ^ ^ ^3 run summon minecraft:text_display ~ ~ ~ "
-                + "{billboard:\"center\",text:{text:%s,color:\"%s\"},shadow:true,background:0,Tags:[\"ai_god_text\"]}"
-                .formatted(new JsonPrimitive(text).toString(), color);
+        String tag = "ai_god_text_" + UUID.randomUUID().toString().substring(0, 8);
+        runCommand("kill @e[type=minecraft:text_display,tag=ai_god_text,distance=..16]", player);
+        String command = "execute anchored eyes positioned ^ ^1 ^5 run summon minecraft:text_display ~ ~ ~ "
+                + "{billboard:\"center\",text:{text:%s,color:\"%s\"},shadow:false,background:0,"
+                + "see_through:true,line_width:160,Tags:[\"ai_god_text\",\"%s\"]}"
+                .formatted(new JsonPrimitive(text).toString(), color, tag);
         CommandOutcome outcome = runCommand(command, player);
+        if (!outcome.known() || outcome.succeeded()) {
+            deferredCommands.add(new DeferredCommand(ticks + 20 * 12, "kill @e[tag=" + tag + "]"));
+        }
         return !outcome.known() || outcome.succeeded()
-                ? "ok: floating text created"
+                ? "ok: subtle floating text created; it disappears automatically after 12 seconds"
                 : "error: Minecraft could not create the text display";
+    }
+
+    private String inspectView(ServerPlayer player) {
+        HitResult hit = player.pick(32, 1, false);
+        String lookingAt = "nothing within 32 blocks";
+        if (hit instanceof BlockHitResult blockHit && hit.getType() == HitResult.Type.BLOCK) {
+            var position = blockHit.getBlockPos();
+            lookingAt = BuiltInRegistries.BLOCK.getKey(player.level().getBlockState(position).getBlock())
+                    + " at " + position.getX() + " " + position.getY() + " " + position.getZ();
+        }
+        List<String> nearby = player.level().getEntities(player, player.getBoundingBox().inflate(16)).stream()
+                .limit(20)
+                .map(entity -> BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()) + " at "
+                        + "%.0f %.0f %.0f".formatted(entity.getX(), entity.getY(), entity.getZ()))
+                .toList();
+        return "looking_at=" + lookingAt + "; nearby_entities=" + nearby;
+    }
+
+    private String scheduleEvent(JsonObject arguments, ServerPlayer player) {
+        if (scheduledEvents.size() >= 64) return "error: the server already has 64 scheduled events";
+        int delay = arguments.get("delay_seconds").getAsInt();
+        int repeat = arguments.get("repeat_seconds").getAsInt();
+        if (delay < 1 || delay > 86_400) return "error: delay_seconds must be between 1 and 86400";
+        if (repeat != 0 && (repeat < 10 || repeat > 86_400)) {
+            return "error: repeat_seconds must be 0 or between 10 and 86400";
+        }
+        String instruction = arguments.get("instruction").getAsString().strip();
+        if (instruction.isBlank()) return "error: instruction cannot be blank";
+        String id = UUID.randomUUID().toString().substring(0, 8);
+        scheduledEvents.add(new ScheduledEvent(id, player.getUUID(), player.getGameProfile().name(), instruction,
+                System.currentTimeMillis() + delay * 1_000L, repeat * 1_000L));
+        saveScheduledEvents();
+        refreshAdminState();
+        return "ok: scheduled event " + id + (repeat == 0 ? " once" : " repeating every " + repeat + " seconds");
+    }
+
+    private String cancelScheduledEvent(JsonObject arguments) {
+        String id = arguments.get("event_id").getAsString();
+        boolean removed = scheduledEvents.removeIf(event -> event.id().equals(id));
+        if (removed) saveScheduledEvents();
+        refreshAdminState();
+        return removed ? "ok: cancelled scheduled event " + id : "error: no scheduled event named " + id;
+    }
+
+    private void runDeferredCommands() {
+        Iterator<DeferredCommand> iterator = deferredCommands.iterator();
+        while (iterator.hasNext()) {
+            DeferredCommand command = iterator.next();
+            if (command.dueTick > ticks) continue;
+            runServerCommand(command.command);
+            iterator.remove();
+        }
+    }
+
+    private void runServerCommand(String command) {
+        CommandSourceStack source = server.createCommandSourceStack()
+                .withPermission(PermissionSet.ALL_PERMISSIONS)
+                .withSuppressedOutput();
+        try {
+            Commands.validateParseResults(server.getCommands().getDispatcher().parse(command, source));
+            server.getCommands().performPrefixedCommand(source, command);
+        } catch (com.mojang.brigadier.exceptions.CommandSyntaxException ignored) {
+            // A cleanup command can safely expire if its entity no longer exists.
+        }
+    }
+
+    private void runScheduledEvents() {
+        long now = System.currentTimeMillis();
+        List<ScheduledEvent> due = scheduledEvents.stream().filter(event -> event.dueAtMillis() <= now).toList();
+        boolean handled = false;
+        for (ScheduledEvent event : due) {
+            ServerPlayer player = server.getPlayerList().getPlayer(event.playerId());
+            if (player == null) continue;
+            handled = true;
+            ChatTurn turn = new ChatTurn(event.playerId(), "Scheduled event " + event.id()
+                    + " is due now: " + event.instruction());
+            turn.systemEvent = true;
+            queue.addLast(turn);
+            scheduledEvents.remove(event);
+            if (event.repeatMillis() > 0) scheduledEvents.add(event.next(now));
+        }
+        if (handled) {
+            saveScheduledEvents();
+            refreshAdminState();
+            processNext();
+        }
+    }
+
+    private void saveScheduledEvents() {
+        scheduleStore.save(scheduledEvents);
+    }
+
+    private void detectAdvancements() {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            Set<String> now = currentAdvancements(player);
+            Set<String> known = completedAdvancements.computeIfAbsent(player.getUUID(), ignored -> new HashSet<>(now));
+            for (String advancement : now) {
+                if (known.add(advancement)) {
+                    ChatTurn turn = new ChatTurn(player.getUUID(), player.getGameProfile().name()
+                            + " just unlocked advancement " + advancement
+                            + ". React briefly if it is interesting. You may celebrate with particles or sound, or stay silent.");
+                    turn.systemEvent = true;
+                    queue.addLast(turn);
+                }
+            }
+        }
+        processNext();
+    }
+
+    private Set<String> currentAdvancements(ServerPlayer player) {
+        Set<String> completed = new HashSet<>();
+        for (var advancement : server.getAdvancements().getAllAdvancements()) {
+            if (advancement.value().display().isPresent()
+                    && player.getAdvancements().getOrStartProgress(advancement).isDone()) {
+                completed.add(advancement.id().toString());
+            }
+        }
+        return completed;
+    }
+
+    private void refreshAdminState() {
+        JsonObject state = new JsonObject();
+        state.addProperty("daytime_ticks", server.overworld().getOverworldClockTime());
+        state.addProperty("raining", server.overworld().isRaining());
+        state.addProperty("thundering", server.overworld().isThundering());
+        state.addProperty("queue_depth", queue.size());
+        JsonArray players = new JsonArray();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            JsonObject value = new JsonObject();
+            value.addProperty("name", player.getGameProfile().name());
+            value.addProperty("health", player.getHealth() / 2.0F);
+            value.addProperty("max_health", player.getMaxHealth() / 2.0F);
+            value.addProperty("hunger", player.getFoodData().getFoodLevel());
+            value.addProperty("x", Math.round(player.getX()));
+            value.addProperty("y", Math.round(player.getY()));
+            value.addProperty("z", Math.round(player.getZ()));
+            value.addProperty("dimension", player.level().dimension().identifier().toString());
+            value.addProperty("holding", heldItem(player));
+            value.addProperty("quest", quests.status(player));
+            players.add(value);
+        }
+        state.add("players", players);
+        JsonArray schedules = new JsonArray();
+        for (ScheduledEvent event : scheduledEvents) {
+            JsonObject value = new JsonObject();
+            value.addProperty("id", event.id());
+            value.addProperty("player", event.playerName());
+            value.addProperty("instruction", event.instruction());
+            value.addProperty("due_in_seconds", Math.max(0,
+                    (event.dueAtMillis() - System.currentTimeMillis()) / 1_000));
+            value.addProperty("repeat_seconds", event.repeatMillis() / 1_000);
+            schedules.add(value);
+        }
+        state.add("scheduled_events", schedules);
+        adminState = state.toString();
     }
 
     private CommandOutcome runCommand(String command, ServerPlayer player) {
@@ -259,17 +450,17 @@ final class GodService implements AutoCloseable {
     }
 
     private static CommandSourceStack operatorSource(ServerPlayer player) {
-        return player.createCommandSourceStack().withPermission(PermissionSet.ALL_PERMISSIONS);
+        return player.createCommandSourceStack()
+                .withPermission(PermissionSet.ALL_PERMISSIONS)
+                .withSuppressedOutput();
     }
 
     private String createQuest(ChatTurn turn, JsonObject arguments, ServerPlayer player) {
         Long dailyDeadline = pendingDailyDeadline.remove(player.getUUID());
         Quest quest = quests.create(player, arguments, dailyDeadline);
         turn.silent = true;
-        player.sendSystemMessage(Component.literal("§d[%s] §f%s\n§eobjective: %s %s × %d"
-                .formatted(godName, MinecraftChatText.fromModel(quest.challenge()),
-                        quest.objective().name().toLowerCase(),
-                        quest.target(), quest.amount())));
+        player.sendSystemMessage(Component.literal("§d[%s] §f%s"
+                .formatted(godName, MinecraftChatText.fromModel(quest.challenge()))));
         return "ok: %s quest created for %s: %s (%s %s x%d)%s".formatted(
                 quest.kind() == Quest.Kind.DAILY ? "daily" : "ad-hoc",
                 player.getGameProfile().name(), quest.challenge(),
@@ -331,18 +522,25 @@ final class GodService implements AutoCloseable {
         String lead = turn.systemEvent
                 ? "Automatic server event concerning %s: %s"
                 : "New ordinary server chat message from %s: %s";
+        String schedules = scheduledEvents.isEmpty() ? "" : "\nActive scheduled events:\n"
+                + scheduledEvents.stream()
+                .map(event -> "- " + event.id() + " for " + event.playerName() + ": "
+                        + event.instruction() + " (due in " + Math.max(0,
+                        (event.dueAtMillis() - System.currentTimeMillis()) / 1_000) + "s; repeat "
+                        + event.repeatMillis() / 1_000 + "s)")
+                .collect(java.util.stream.Collectors.joining("\n"));
         return """
                 %s
 
                 Live server state:
                 difficulty=%s, daytime_ticks=%d, raining=%s, thundering=%s
                 online_players=%d
-                %s
+                %s%s
                 """.formatted(
                 lead.formatted(speaker.getGameProfile().name(), turn.message),
                 server.getWorldData().getDifficulty(), level.getOverworldClockTime(),
                 level.isRaining(), level.isThundering(),
-                server.getPlayerCount(), players);
+                server.getPlayerCount(), players, schedules);
     }
 
     private static String heldItem(ServerPlayer player) {
@@ -385,4 +583,6 @@ final class GodService implements AutoCloseable {
     }
 
     private record CommandOutcome(boolean known, boolean succeeded, int value) {}
+    private record DeferredCommand(long dueTick, String command) {}
+
 }

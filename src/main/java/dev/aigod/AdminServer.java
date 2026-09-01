@@ -24,6 +24,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 
 final class AdminServer implements AutoCloseable {
     private static final String CONVERSATIONS_URL = "https://api.openai.com/v1/conversations/";
@@ -37,18 +38,20 @@ final class AdminServer implements AutoCloseable {
     private final String model;
     private final byte[] expectedAuthorization;
     private final ConversationStore conversationStore;
+    private final Supplier<String> stateSupplier;
     private final Logger logger;
     private volatile String cachedConversationId;
     private volatile String cachedFirstItemId;
     private volatile String cachedBody;
 
     AdminServer(String apiKey, String model, ConversationStore conversationStore, int port,
-                String password, Logger logger)
+                String password, Supplier<String> stateSupplier, Logger logger)
             throws IOException {
         this.apiKey = apiKey;
         this.model = model;
         this.expectedAuthorization = ("admin:" + password).getBytes(StandardCharsets.UTF_8);
         this.conversationStore = conversationStore;
+        this.stateSupplier = stateSupplier;
         this.logger = logger;
         this.http = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
@@ -89,7 +92,7 @@ final class AdminServer implements AutoCloseable {
                 ? firstPage.get("first_id").getAsString() : null;
         if (conversationId.equals(cachedConversationId)
                 && java.util.Objects.equals(firstItemId, cachedFirstItemId)
-                && cachedBody != null) return cachedBody;
+                && cachedBody != null) return withLiveState(cachedBody);
 
         JsonObject conversation = get(baseUrl);
         JsonArray items = new JsonArray();
@@ -113,7 +116,7 @@ final class AdminServer implements AutoCloseable {
         cachedConversationId = conversationId;
         cachedFirstItemId = firstItemId;
         cachedBody = payload.toString();
-        return cachedBody;
+        return withLiveState(cachedBody);
     }
 
     private JsonObject get(String url) throws InterruptedException {
@@ -174,8 +177,15 @@ final class AdminServer implements AutoCloseable {
         }
     }
 
-    private static String empty() {
-        return "{\"conversation\":null,\"items\":[],\"has_more\":false}";
+    private String empty() {
+        return withLiveState("{\"conversation\":null,\"items\":[],\"has_more\":false}");
+    }
+
+    private String withLiveState(String body) {
+        JsonObject payload = JsonParser.parseString(body).getAsJsonObject();
+        payload.add("state", JsonParser.parseString(stateSupplier.get()));
+        payload.addProperty("refreshed_at", Instant.now().toString());
+        return payload.toString();
     }
 
     private static String error(String message) {

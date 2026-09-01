@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>AI God / activity</title>
+    <title>Minecraft / admin</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
@@ -20,7 +20,18 @@
         <div><span>items</span><strong id="event-count">0</strong></div>
         <div><span>model</span><strong id="model-name">—</strong></div>
         <div><span>tool calls</span><strong id="tool-count">0</strong></div>
-        <div><span>history</span><strong>persistent</strong></div>
+        <div><span>online</span><strong id="online-count">0</strong></div>
+      </section>
+
+      <section class="live-grid">
+        <div class="live-panel">
+          <div class="panel-heading"><span>players</span><small id="world-state">—</small></div>
+          <div id="players" class="players"><p class="empty-inline">nobody online</p></div>
+        </div>
+        <div class="live-panel">
+          <div class="panel-heading"><span>scheduled</span><small id="queue-depth">queue 0</small></div>
+          <div id="schedules" class="schedules"><p class="empty-inline">nothing scheduled</p></div>
+        </div>
       </section>
 
       <nav aria-label="Event filters">

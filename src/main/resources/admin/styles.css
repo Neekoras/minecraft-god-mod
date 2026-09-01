@@ -51,6 +51,27 @@ h1 { margin-top: 7px; font-family: Georgia, serif; font-size: clamp(52px, 8vw, 9
 .summary span { display: block; color: var(--muted); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
 .summary strong { display: block; margin-top: 8px; font-size: 22px; font-weight: 400; }
 
+.live-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 32px; }
+.live-panel { min-height: 150px; border: 1px solid var(--line); background: var(--panel); }
+.panel-heading { display: flex; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.panel-heading small { color: var(--blue); font: inherit; letter-spacing: 0; text-transform: none; }
+.player-row,
+.schedule-row { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.player-row:last-child,
+.schedule-row:last-child { border-bottom: 0; }
+.player-row > div:first-child,
+.schedule-row > div { display: flex; justify-content: space-between; gap: 12px; }
+.player-row strong,
+.schedule-row strong { color: var(--ink); font-size: 12px; font-weight: 500; }
+.coordinates,
+.schedule-row span { color: var(--muted); font-size: 10px; }
+.hearts { height: 3px; margin: 9px 0; background: #291716; }
+.hearts i { display: block; height: 100%; background: var(--red); }
+.player-row p,
+.schedule-row p { margin: 5px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.player-row .quest { color: var(--yellow); }
+.empty-inline { margin: 0; padding: 28px 16px; color: var(--muted); font-size: 11px; }
+
 nav { display: flex; gap: 7px; margin-bottom: 18px; }
 button { border: 1px solid var(--line); color: var(--muted); background: transparent; padding: 8px 12px; font: inherit; font-size: 11px; cursor: pointer; }
 button:hover,
@@ -73,6 +94,7 @@ article[data-kind="reasoning"] .event-type { color: var(--yellow); }
   body { width: min(100% - 24px, 1120px); }
   header { padding-top: 32px; }
   .summary { grid-template-columns: repeat(2, 1fr); }
+  .live-grid { grid-template-columns: 1fr; }
   .summary div:nth-child(2) { border-right: 0; }
   .summary div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
   article { grid-template-columns: 1fr; gap: 10px; }

@@ -30,6 +30,8 @@ jobs:
           path: |
             build/libs/ai-god-0.1.0.jar
             server-icon.png
+            deploy/minecraft.service
+            deploy/minecraft-deploy
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
@@ -44,13 +46,17 @@ jobs:
             "s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}-server-icon.png"
           aws s3 cp server-icon.png \
             "s3://${{ vars.AWS_ARTIFACT_BUCKET }}/latest/server-icon.png"
+          aws s3 cp deploy/minecraft.service \
+            "s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}-minecraft.service"
+          aws s3 cp deploy/minecraft-deploy \
+            "s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}-minecraft-deploy"
       - name: Deploy and restart Minecraft
         run: |
           command_id=$(aws ssm send-command \
             --instance-ids "${{ vars.EC2_INSTANCE_ID }}" \
             --document-name AWS-RunShellScript \
             --comment "Deploy ${GITHUB_SHA}" \
-            --parameters "commands=aws s3 cp s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}-server-icon.png /opt/minecraft/server-icon.png && chown minecraft:minecraft /opt/minecraft/server-icon.png && /usr/local/bin/minecraft-deploy s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}.jar" \
+            --parameters "commands=aws s3 cp s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}-server-icon.png /opt/minecraft/server-icon.png && chown minecraft:minecraft /opt/minecraft/server-icon.png && aws s3 cp s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}-minecraft.service /etc/systemd/system/minecraft.service && aws s3 cp s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}-minecraft-deploy /usr/local/bin/minecraft-deploy && chmod 755 /usr/local/bin/minecraft-deploy && systemctl daemon-reload && /usr/local/bin/minecraft-deploy s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}.jar" \
             --query Command.CommandId \
             --output text)
           aws ssm wait command-executed \
