@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "ai_god",
+  "version": "${version}",
+  "name": "AI God",
+  "description": "A server-side AI deity that creates quests, rewards success, and punishes failure.",
+  "authors": ["Dennis"],
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "main": ["dev.aigod.AiGodMod"]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

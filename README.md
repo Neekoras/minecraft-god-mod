@@ -1,0 +1,150 @@
+# AI God
+
+AI God is a server-side Fabric mod that puts one persistent OpenAI-powered god
+in ordinary Minecraft chat. There is no bot command and no separate UI: every
+player message becomes a turn, and the god decides whether to answer, act,
+offer a bargain, or remain completely silent.
+
+```text
+<Dennis> can I have a diamond pickaxe?
+[AI God] Bring me the wool of twelve sheep before nightfall. Fail, and the sky answers.
+Objective: kill minecraft:sheep × 12.
+```
+
+The god is intentionally not sandboxed. It can execute **every command installed
+on the server with permission level 4**, including commands from other mods and
+data packs.
+
+> [!CAUTION]
+> This is remote, model-controlled operator access. It can kill players, clear
+> inventories, change game rules, ban users, stop the server, or destroy the
+> world. Use a dedicated server, backups, and an API key you can revoke. Do not
+> install it on a world you are unwilling to lose.
+
+## What it can do
+
+The model receives three custom tools:
+
+- `run_command` executes any installed server command as the speaking player
+  with level-4 permission. Relative coordinates and selectors therefore start
+  from that player. The model can call it repeatedly in one turn.
+- `create_quest` creates a timed `KILL`, `MINE`, or `COLLECT` objective. Its
+  success reward and timeout punishment are unrestricted operator commands.
+- `stay_silent` ends the turn without putting a god message in chat.
+
+Tool results go back to the model. It can issue more commands after seeing a
+result, then speak or choose silence. There is no local tool-call count cap and
+no allowlist of Minecraft commands.
+
+The god sees live context on every turn:
+
+- the new chat message and its speaker;
+- every online player's health, hunger, XP, position, dimension, inventory, and
+  active quest;
+- server difficulty, day time, rain, and thunder;
+- the preceding shared server conversation and prior tool results.
+
+Chat turns are queued in order, so simultaneous messages cannot fork or race
+the god's shared memory.
+
+## Memory and compaction
+
+AI God chains Responses API turns with `previous_response_id`. The latest
+completed response ID is saved in `ai-god-conversation.txt` inside the world
+folder, allowing the conversation to survive a normal server restart.
+
+Server-side context compaction is enabled automatically at 100,000 rendered
+tokens. OpenAI compresses older conversation and tool history and carries the
+result forward; the mod continues sending only the newest live server turn.
+Override the threshold with `AI_GOD_COMPACT_THRESHOLD`.
+
+This follows OpenAI's documented [conversation-state](https://developers.openai.com/api/docs/guides/conversation-state)
+and [server-side compaction](https://developers.openai.com/api/docs/guides/compaction#server-side-compaction)
+patterns.
+
+## Requirements
+
+- Minecraft Java Edition 1.21.1 dedicated server
+- Fabric Loader 0.18 or newer
+- Fabric API for Minecraft 1.21.1
+- Java 21 or newer
+- An OpenAI API key with access to the configured model
+
+The default model is `gpt-5.4-mini` because it supports the Responses API and
+function calling. Set `AI_GOD_MODEL` to use another compatible model.
+
+## Build
+
+```bash
+./gradlew test build
+```
+
+The server-ready artifact is written to:
+
+```text
+build/libs/ai-god-0.1.0.jar
+```
+
+Copy that JAR and the matching Fabric API JAR into the dedicated server's
+`mods/` directory.
+
+## Run
+
+Provide configuration through the server process environment:
+
+```bash
+export OPENAI_API_KEY="sk-..."
+export AI_GOD_MODEL="gpt-5.4-mini"                 # optional
+export AI_GOD_COMPACT_THRESHOLD="100000"          # optional
+java -jar fabric-server-launch.jar nogui
+```
+
+Do not put the API key in this repository, `server.properties`, a command
+block, or Minecraft chat.
+
+Once the server starts, players just chat normally. Every message is considered
+by the god; no `/god` command or prefix is required. Because every message can
+produce an API turn, a busy public server can generate substantial API usage.
+
+## Quest behavior
+
+Quests are persisted to `ai-god-quests.json` in the world folder.
+
+- `KILL` advances when the quest owner directly kills the target entity.
+- `MINE` advances when the quest owner breaks the target block.
+- `COLLECT` counts matching items gained after the quest was created.
+- Completion runs the stored reward command.
+- An expired quest runs its punishment when that player is online, then clears.
+
+`{player}` in tool and quest commands is replaced with the current player's
+exact Minecraft name.
+
+## How it works
+
+```text
+normal server chat
+  -> live world/player snapshot
+  -> OpenAI Responses API + shared previous_response_id
+      -> speak
+      -> stay silent
+      -> run one or more unrestricted operator commands
+      -> create a tracked quest
+  -> tool results returned to the model
+  -> repeat until the model is done
+  -> optional AI God message in normal server chat
+```
+
+The HTTP requests run on virtual threads. All Minecraft state reads, quest
+updates, and commands execute on the server thread.
+
+## Development
+
+```bash
+./gradlew test       # quest logic tests
+./gradlew build      # compile, test, and remap the distributable JAR
+./gradlew runServer  # local Fabric server smoke test (requires EULA acceptance)
+```
+
+The project is deliberately small: Java's built-in HTTP client talks directly
+to the Responses API, Gson handles JSON through Minecraft's existing runtime,
+and Fabric events provide chat and quest progress.

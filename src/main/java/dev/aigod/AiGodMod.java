@@ -1,0 +1,77 @@
+package dev.aigod;
+
+import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
+import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.storage.LevelResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public final class AiGodMod implements ModInitializer {
+    public static final String MOD_ID = "ai_god";
+    private static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+    private static GodService god;
+
+    @Override
+    public void onInitialize() {
+        ServerMessageEvents.CHAT_MESSAGE.register((message, player, parameters) -> {
+            if (god != null) god.hear(player, message.signedContent());
+        });
+
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            String apiKey = System.getenv("OPENAI_API_KEY");
+            if (apiKey == null || apiKey.isBlank()) {
+                LOGGER.warn("AI God disabled: OPENAI_API_KEY is not set");
+                return;
+            }
+            String model = System.getenv().getOrDefault("AI_GOD_MODEL", "gpt-5.4-mini");
+            int compactThreshold = positiveEnvironmentInt("AI_GOD_COMPACT_THRESHOLD", 100_000);
+            var worldPath = server.getWorldPath(LevelResource.ROOT);
+            QuestStore store = new QuestStore(
+                    worldPath.resolve("ai-god-quests.json"), LOGGER);
+            ConversationStore conversationStore = new ConversationStore(
+                    worldPath.resolve("ai-god-conversation.txt"), LOGGER);
+            god = new GodService(server, apiKey, model, compactThreshold, store, conversationStore);
+            LOGGER.info("AI God awakened using {}", model);
+        });
+
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            if (god != null) god.close();
+            god = null;
+        });
+
+        ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
+            if (god != null && damageSource.getEntity() instanceof ServerPlayer player) {
+                god.quests().recordKill(player, BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString());
+            }
+        });
+
+        PlayerBlockBreakEvents.AFTER.register((world, player, position, state, blockEntity) -> {
+            if (god != null && player instanceof ServerPlayer serverPlayer) {
+                god.quests().recordMine(serverPlayer, BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString());
+            }
+        });
+
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (god != null) god.quests().tick();
+        });
+    }
+
+    private static int positiveEnvironmentInt(String name, int fallback) {
+        String value = System.getenv(name);
+        if (value == null || value.isBlank()) return fallback;
+        try {
+            int parsed = Integer.parseInt(value);
+            if (parsed > 0) return parsed;
+        } catch (NumberFormatException ignored) {
+            // Fall through to the documented default.
+        }
+        LOGGER.warn("Ignoring invalid {}={}; using {}", name, value, fallback);
+        return fallback;
+    }
+}
