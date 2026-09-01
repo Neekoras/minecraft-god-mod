@@ -1,0 +1,56 @@
+name: Build and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: minecraft-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v6
+      - run: ./gradlew test build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ai-god-${{ github.sha }}
+          path: build/libs/ai-god-0.1.0.jar
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Upload server JAR
+        run: |
+          aws s3 cp build/libs/ai-god-0.1.0.jar \
+            "s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}.jar"
+          aws s3 cp build/libs/ai-god-0.1.0.jar \
+            "s3://${{ vars.AWS_ARTIFACT_BUCKET }}/latest/ai-god.jar"
+      - name: Deploy and restart Minecraft
+        run: |
+          command_id=$(aws ssm send-command \
+            --instance-ids "${{ vars.EC2_INSTANCE_ID }}" \
+            --document-name AWS-RunShellScript \
+            --comment "Deploy ${GITHUB_SHA}" \
+            --parameters "commands=/usr/local/bin/minecraft-deploy s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}.jar" \
+            --query Command.CommandId \
+            --output text)
+          aws ssm wait command-executed \
+            --command-id "$command_id" \
+            --instance-id "${{ vars.EC2_INSTANCE_ID }}"
+          aws ssm get-command-invocation \
+            --command-id "$command_id" \
+            --instance-id "${{ vars.EC2_INSTANCE_ID }}" \
+            --query '{Status:Status,Output:StandardOutputContent,Error:StandardErrorContent}'

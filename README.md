@@ -21,6 +21,18 @@ data packs.
 > world. Use a dedicated server, backups, and an API key you can revoke. Do not
 > install it on a world you are unwilling to lose.
 
+## Join the live server
+
+Open **Minecraft: Java Edition 1.21.1**, choose **Multiplayer**, and add:
+
+```text
+54.193.72.0:25565
+```
+
+No client mod is needed. The server is public, uses normal Minecraft account
+authentication, and currently allows up to 10 players. Just talk in ordinary
+server chat; there is no `/god` command or special prefix.
+
 ## What it can do
 
 The model receives three custom tools:
@@ -88,7 +100,7 @@ build/libs/ai-god-0.1.0.jar
 Copy that JAR and the matching Fabric API JAR into the dedicated server's
 `mods/` directory.
 
-## Run
+## Run locally
 
 Provide configuration through the server process environment:
 
@@ -98,6 +110,19 @@ export AI_GOD_MODEL="gpt-5.4-mini"                 # optional
 export AI_GOD_COMPACT_THRESHOLD="100000"          # optional
 java -jar fabric-server-launch.jar nogui
 ```
+
+For the quickest development server, accept Minecraft's EULA once and use the
+Fabric Loom task:
+
+```bash
+mkdir -p run
+printf 'eula=true\n' > run/eula.txt
+OPENAI_API_KEY="sk-..." ./gradlew runServer
+```
+
+That creates a disposable local world under `run/`. Join it from the same Mac
+at `localhost:25565`. Stop it with `Ctrl-C`. Use a separate development API key
+when possible.
 
 Do not put the API key in this repository, `server.properties`, a command
 block, or Minecraft chat.
@@ -148,3 +173,59 @@ updates, and commands execute on the server thread.
 The project is deliberately small: Java's built-in HTTP client talks directly
 to the Responses API, Gson handles JSON through Minecraft's existing runtime,
 and Fabric events provide chat and quest progress.
+
+## AWS deployment
+
+Production is deliberately one small stack:
+
+```text
+push to main -> GitHub Actions builds and tests -> private S3 artifact
+             -> Systems Manager runs minecraft-deploy on one EC2 server
+             -> systemd restarts Minecraft with the new JAR
+```
+
+- EC2: one `t3.medium` Amazon Linux 2023 instance in `us-west-1`
+- Address: Elastic IP `54.193.72.0`, TCP port `25565`
+- Runtime: Java 21, Fabric Loader, Fabric API, and one `minecraft.service`
+- Administration: AWS Systems Manager; SSH port 22 is not exposed
+- Secrets: encrypted Systems Manager parameter
+  `/minecraft-ai-god/openai-api-key`
+- Storage: a private, encrypted, versioned S3 bucket for releases and backups
+- Recovery: the server stops briefly for a daily world backup; backups expire
+  after 14 days and old release artifacts after 30 days
+
+Systems Manager is used because the instance can retrieve the OpenAI key and
+receive deployment commands through its AWS identity. The key is never stored
+in GitHub Actions, the AMI, user-data, or this repository.
+
+Every push to `main` runs [.github/workflows/deploy.yml](.github/workflows/deploy.yml).
+The workflow tests and builds the exact commit, uploads its JAR, asks Systems
+Manager to deploy it, waits for the command, and fails if the restart fails.
+Expect roughly 15 seconds of downtime during a deploy. No approval click is
+required.
+
+Useful operator commands:
+
+```bash
+# Show the service status without opening SSH.
+aws ssm send-command --region us-west-1 \
+  --instance-ids i-015a57b27d1f5c1f8 \
+  --document-name AWS-RunShellScript \
+  --parameters 'commands=["systemctl status minecraft --no-pager"]'
+
+# Replace or rotate the encrypted OpenAI key. Never commit the value.
+aws ssm put-parameter --region us-west-1 \
+  --name /minecraft-ai-god/openai-api-key \
+  --type SecureString --value 'NEW_KEY_HERE' --overwrite
+
+# Apply a rotated key immediately using the already-uploaded release.
+aws ssm send-command --region us-west-1 \
+  --instance-ids i-015a57b27d1f5c1f8 \
+  --document-name AWS-RunShellScript \
+  --parameters 'commands=["/usr/local/bin/minecraft-deploy s3://minecraft-ai-god-928535088750-us-west-1/latest/ai-god.jar"]'
+```
+
+AWS bills for the EC2 instance, its 20 GB disk, Elastic IP usage, S3 storage,
+and network traffic. OpenAI API usage is billed separately. Stop the instance
+when it is not needed; release the instance and Elastic IP when the server is
+retired.
