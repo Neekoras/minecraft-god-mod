@@ -9,7 +9,6 @@ base {
     archivesName = project.archives_base_name
 }
 
-
 repositories {
     mavenCentral()
 }

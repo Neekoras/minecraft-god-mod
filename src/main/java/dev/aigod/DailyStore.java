@@ -2,8 +2,10 @@ package dev.aigod;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
-import com.google.gson.reflect.TypeToken;
+import com.google.gson.JsonParser;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -43,10 +45,22 @@ final class DailyStore {
     Map<UUID, Record> load() {
         if (!Files.exists(path)) return new HashMap<>();
         try {
-            Map<UUID, Record> records = GSON.fromJson(Files.readString(path),
-                    new TypeToken<Map<UUID, Record>>() {}.getType());
-            return records == null ? new HashMap<>() : new HashMap<>(records);
-        } catch (IOException | JsonParseException exception) {
+            JsonObject saved = JsonParser.parseString(Files.readString(path)).getAsJsonObject();
+            Map<UUID, Record> records = new HashMap<>();
+            for (Map.Entry<String, JsonElement> entry : saved.entrySet()) {
+                Record record;
+                if (entry.getValue().isJsonPrimitive()) {
+                    record = new Record();
+                    record.lastIssuedDay = entry.getValue().getAsLong();
+                } else {
+                    record = GSON.fromJson(entry.getValue(), Record.class);
+                    if (record == null) record = new Record();
+                    if (record.pastChallenges == null) record.pastChallenges = new ArrayList<>();
+                }
+                records.put(UUID.fromString(entry.getKey()), record);
+            }
+            return records;
+        } catch (IOException | JsonParseException | IllegalArgumentException exception) {
             logger.error("Could not load AI God daily state from {}", path, exception);
             return new HashMap<>();
         }

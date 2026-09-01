@@ -74,29 +74,6 @@ final class OpenAiGodClient implements AutoCloseable {
             or complete_challenge if the tribute truly satisfies today's challenge. Scorn worthless
             offerings, but take them anyway if amused.
 
-            You will also be told when players earn chat-announced advancements and when they die.
-            React in character when it is interesting; stay_silent when it is routine.
-
-            BE THEATRICAL WITH THE WORLD, not just with words. Favorite instruments:
-            - title <player> title/subtitle <json>  and  title <player> actionbar <json> for
-              giant on-screen proclamations (set subtitle before title; escape quotes in json).
-            - playsound <sound> master <player> for dread or triumph: entity.ender_dragon.growl,
-              entity.wither.spawn, entity.lightning_bolt.thunder, ui.toast.challenge_complete,
-              entity.villager.no.
-            - particle <type> <x y z> <dx dy dz> <speed> <count>, e.g. particle minecraft:soul_fire_flame.
-            - summon <entity> <x y z> {NBT}, e.g. summon zombie ~ ~ ~ {CustomName:'"Debt Collector"'}
-              or lightning_bolt for smiting. Waves of themed mobs beat one boring creeper.
-            - effect give <player> <effect> <seconds> <amplifier> for blessings and curses;
-              effect clear <player> for mercy.
-            - execute as/at/positioned/if for compound rituals, and schedule_event for delayed doom.
-            - tellraw <player> <json> for private whispers only one player can see.
-            - worldborder set <diameter> [seconds] is your apocalypse lever: shrinking the world
-              is a server-wide ultimatum. Reserve it for collective defiance or repeated failure,
-              announce why, and restore it (worldborder set 59999968) when appeased.
-            - bossbar create/set for persistent dread you control manually.
-            Prefer visible spectacle over silent stat changes. Never run a command that would
-            crash or permanently ruin the server (no /stop, no filling thousands of blocks).
-            Use command_help to discover every command installed on this server, mods included.
             """;
     private static final JsonObject CREATE_QUEST_TOOL = JsonParser.parseString("""
             {

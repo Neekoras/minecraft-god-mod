@@ -468,7 +468,6 @@ final class GodService implements AutoCloseable {
         turn.silent = true;
         player.sendSystemMessage(Component.literal("§d[%s] §f%s"
                 .formatted(godName, MinecraftChatText.fromModel(quest.challenge()))));
-        if (quest.kind() == Quest.Kind.DAILY) dailyFanfare(player, quest);
         return "ok: %s quest created for %s: %s (%s %s x%d)%s".formatted(
                 quest.kind() == Quest.Kind.DAILY ? "daily" : "ad-hoc",
                 player.getGameProfile().name(), quest.challenge(),
@@ -494,15 +493,6 @@ final class GodService implements AutoCloseable {
                     .formatted(name);
         }
         return "ok: quest of %s voided with no reward or punishment".formatted(name);
-    }
-
-    private void dailyFanfare(ServerPlayer player, Quest quest) {
-        String name = player.getGameProfile().name();
-        quests.runOperatorCommand("title " + name + " times 10 70 20", player);
-        quests.runOperatorCommand("title " + name + " subtitle {\"text\":"
-                + new JsonPrimitive(quest.challenge()) + ",\"color\":\"gold\"}", player);
-        quests.runOperatorCommand("title " + name + " title {\"text\":\"Daily Challenge\",\"color\":\"red\",\"bold\":true}", player);
-        quests.runOperatorCommand("playsound minecraft:entity.ender_dragon.growl master " + name, player);
     }
 
     private void finishTurn() {

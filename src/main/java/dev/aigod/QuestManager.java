@@ -203,16 +203,20 @@ final class QuestManager {
                     "STAT targets must look like stat_type/stat_value, e.g. minecraft:custom/minecraft:jump");
         }
         Identifier typeId = Identifier.tryParse(normalizedId(parts[0]));
-        StatType<?> type = typeId == null ? null : BuiltInRegistries.STAT_TYPE.getValue(typeId);
-        if (type == null) throw new IllegalArgumentException("Unknown stat type: " + parts[0]);
+        if (typeId == null || !BuiltInRegistries.STAT_TYPE.containsKey(typeId)) {
+            throw new IllegalArgumentException("Unknown stat type: " + parts[0]);
+        }
+        StatType<?> type = BuiltInRegistries.STAT_TYPE.getValue(typeId);
         Identifier valueId = Identifier.tryParse(normalizedId(parts[1]));
         if (valueId == null) throw new IllegalArgumentException("Unknown stat value: " + parts[1]);
         return statOf(type, valueId, target);
     }
 
     private static <T> Stat<T> statOf(StatType<T> type, Identifier valueId, String target) {
+        if (!type.getRegistry().containsKey(valueId)) {
+            throw new IllegalArgumentException("The god chose an unknown stat: " + target);
+        }
         T value = type.getRegistry().getValue(valueId);
-        if (value == null) throw new IllegalArgumentException("The god chose an unknown stat: " + target);
         return type.get(value);
     }
 

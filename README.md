@@ -98,16 +98,10 @@ keep daily challenges varied, fun, and hard.
   unreachable at sundown, the quest's stored punishment command runs instead,
   so failure is never free.
 
-Daily challenges arrive with a full-screen title, a subtitle carrying the
-proclamation, and an ender-dragon growl. The dawn request tells the god the
-server day number (to scale difficulty) and the player's last seven daily
-challenges (so it does not repeat itself); both live in `ai-god-daily.json`.
-
-The god's standing instructions include a command playbook (titles, sounds,
-particles, themed mob summons, effects, `worldborder` as a server-wide
-ultimatum), and `command_help` gives it the real command tree of the running
-server, mods included. The live snapshot also names the sky phase (dawn,
-midday, dusk, night) and the server day.
+The dawn request includes the server day number so difficulty can grow over
+time, plus the player's last seven daily challenges so the god can avoid
+repeating itself. This history lives in `ai-god-daily.json`. Live context also
+names the current sky phase, such as dawn, dusk, or night.
 
 One challenge is issued per player per day; the issuance state is persisted
 to `ai-god-daily.json` in the world folder so restarts do not double-issue.
