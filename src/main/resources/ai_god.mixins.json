@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "dev.aigod.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "refmap": "ai_god.refmap.json",
+  "mixins": [
+    "PlayerAdvancementsMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

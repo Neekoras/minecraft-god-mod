@@ -34,8 +34,12 @@ The model receives five custom tools:
 - `run_command` executes any installed server command as the speaking player
   with level-4 permission. Relative coordinates and selectors therefore start
   from that player. The model can call it repeatedly in one turn.
-- `create_quest` creates a timed `KILL`, `MINE`, or `COLLECT` objective. Its
-  success reward and timeout punishment are unrestricted operator commands.
+- `create_quest` creates a timed `KILL`, `MINE`, `COLLECT`, or `STAT`
+  objective. Its success reward and timeout punishment are unrestricted
+  operator commands. `STAT` objectives track any vanilla statistic
+  (`minecraft:custom/minecraft:jump`, `minecraft:crafted/minecraft:bread`,
+  sprint distance, fishing, trading, and hundreds more), which is what daily
+  challenges use for variety beyond kill/mine/collect.
 - `complete_challenge` marks an online player's active quest complete and runs
   its reward command, for when an offering or deed satisfies the god.
 - `cancel_quest` voids a player's active quest with no reward or punishment,
@@ -71,7 +75,18 @@ keep daily challenges varied, fun, and hard.
   unreachable at sundown, the quest's stored punishment command runs instead,
   so failure is never free.
 
-One challenge is issued per player per day; the last issued day is persisted
+Daily challenges arrive with a full-screen title, a subtitle carrying the
+proclamation, and an ender-dragon growl. The dawn request tells the god the
+server day number (to scale difficulty) and the player's last seven daily
+challenges (so it does not repeat itself); both live in `ai-god-daily.json`.
+
+The god's standing instructions include a command playbook (titles, sounds,
+particles, themed mob summons, effects, `worldborder` as a server-wide
+ultimatum) plus the actual list of command names registered on the running
+server, mods included. The live snapshot also names the sky phase (dawn,
+midday, dusk, night) and the server day.
+
+One challenge is issued per player per day; the issuance state is persisted
 to `ai-god-daily.json` in the world folder so restarts do not double-issue.
 Players who join mid-day receive their challenge on the next scheduler pass.
 If a challenge cannot be issued (API error), the mod retries once a minute
@@ -85,7 +100,9 @@ held item in the live snapshot, takes accepted offerings itself via vanilla
 commands, and may respond with gifts, mercy, or `complete_challenge`.
 
 Player deaths are reported to the god as they happen, with the vanilla death
-message, so it can mock, mourn, avenge, or ignore them.
+message, so it can mock, mourn, avenge, or ignore them. Chat-announced
+advancements are reported too (via a small mixin on `PlayerAdvancements`), so
+milestones like entering the Nether get divine commentary.
 
 Bargains are negotiable in plain chat. Ask for 100 diamonds, get told to kill
 50 zombies, counter with "what about 40?" and the god may accept the amended

@@ -10,6 +10,7 @@
   "entrypoints": {
     "main": ["dev.aigod.AiGodMod"]
   },
+  "mixins": ["ai_god.mixins.json"],
   "depends": {
     "fabricloader": ">=0.18.0",
     "minecraft": "~1.21.1",

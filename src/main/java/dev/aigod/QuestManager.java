@@ -6,6 +6,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.stats.Stat;
+import net.minecraft.stats.StatType;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.HashMap;
@@ -38,11 +40,17 @@ final class QuestManager {
         }
 
         Quest.Objective objective = Quest.Objective.valueOf(requiredString(arguments, "objective"));
-        String target = normalizedId(requiredString(arguments, "target"));
+        String target = objective == Quest.Objective.STAT
+                ? requiredString(arguments, "target")
+                : normalizedId(requiredString(arguments, "target"));
         validateTarget(objective, target);
         int amount = positiveInt(arguments, "amount");
         int minutes = positiveInt(arguments, "time_limit_minutes");
-        int baseline = objective == Quest.Objective.COLLECT ? count(player, target) : 0;
+        int baseline = switch (objective) {
+            case COLLECT -> count(player, target);
+            case STAT -> player.getStats().getValue(resolveStat(target));
+            default -> 0;
+        };
         boolean daily = dailyDeadlineDayTime != null;
         Quest quest = new Quest(
                 player.getUUID(),
@@ -78,7 +86,11 @@ final class QuestManager {
             Quest quest = quests.get(player.getUUID());
             if (quest == null) continue;
             if (quest.objective() == Quest.Objective.COLLECT
-                    && quest.recordCollected(count(player, quest.target()))) {
+                    && quest.recordTotal(count(player, quest.target()))) {
+                changed(player, quest);
+            }
+            if (quest.objective() == Quest.Objective.STAT
+                    && quest.recordTotal(player.getStats().getValue(resolveStat(quest.target())))) {
                 changed(player, quest);
             }
             if (quest.expired(nowMillis, nowDayTime)) {
@@ -162,13 +174,42 @@ final class QuestManager {
     }
 
     private static void validateTarget(Quest.Objective objective, String target) {
+        if (objective == Quest.Objective.STAT) {
+            resolveStat(target);
+            return;
+        }
         ResourceLocation id = ResourceLocation.tryParse(target);
         boolean valid = id != null && switch (objective) {
             case KILL -> BuiltInRegistries.ENTITY_TYPE.containsKey(id);
             case MINE -> BuiltInRegistries.BLOCK.containsKey(id);
             case COLLECT -> BuiltInRegistries.ITEM.containsKey(id);
+            case STAT -> false;
         };
         if (!valid) throw new IllegalArgumentException("The god chose an unknown target: " + target);
+    }
+
+    /**
+     * Resolves a "stat_type/stat_value" target like "minecraft:custom/minecraft:jump" or
+     * "minecraft:killed/minecraft:zombie" against the vanilla stat registries.
+     */
+    static Stat<?> resolveStat(String target) {
+        String[] parts = target.split("/", 2);
+        if (parts.length != 2) {
+            throw new IllegalArgumentException(
+                    "STAT targets must look like stat_type/stat_value, e.g. minecraft:custom/minecraft:jump");
+        }
+        ResourceLocation typeId = ResourceLocation.tryParse(normalizedId(parts[0]));
+        StatType<?> type = typeId == null ? null : BuiltInRegistries.STAT_TYPE.get(typeId);
+        if (type == null) throw new IllegalArgumentException("Unknown stat type: " + parts[0]);
+        ResourceLocation valueId = ResourceLocation.tryParse(normalizedId(parts[1]));
+        if (valueId == null) throw new IllegalArgumentException("Unknown stat value: " + parts[1]);
+        return statOf(type, valueId, target);
+    }
+
+    private static <T> Stat<T> statOf(StatType<T> type, ResourceLocation valueId, String target) {
+        T value = type.getRegistry().get(valueId);
+        if (value == null) throw new IllegalArgumentException("The god chose an unknown stat: " + target);
+        return type.get(value);
     }
 
     private static String normalizedId(String value) {

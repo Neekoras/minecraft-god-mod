@@ -39,8 +39,12 @@ public final class AiGodMod implements ModInitializer {
                     worldPath.resolve("ai-god-daily.json"), LOGGER);
             ConversationStore conversationStore = new ConversationStore(
                     worldPath.resolve("ai-god-conversation.txt"), LOGGER);
+            String commandCatalog = server.getCommands().getDispatcher().getRoot().getChildren().stream()
+                    .map(node -> node.getName())
+                    .sorted()
+                    .collect(java.util.stream.Collectors.joining(", "));
             god = new GodService(server, apiKey, model, godName, compactThreshold,
-                    store, dailyStore, conversationStore);
+                    commandCatalog, store, dailyStore, conversationStore);
             LOGGER.info("{} awakened using {}", godName, model);
         });
 
@@ -68,6 +72,11 @@ public final class AiGodMod implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             if (god != null) god.tick();
         });
+    }
+
+    /** Called from PlayerAdvancementsMixin when a player completes a chat-announced advancement. */
+    public static void onAdvancement(ServerPlayer player, String title, String description) {
+        if (god != null) god.advancementEarned(player, title, description);
     }
 
     private static int positiveEnvironmentInt(String name, int fallback) {

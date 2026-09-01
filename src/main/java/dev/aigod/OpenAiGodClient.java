@@ -63,6 +63,33 @@ final class OpenAiGodClient implements AutoCloseable {
             air, or clear {player} <item> <count>) and only then respond with favor: a gift, mercy,
             or complete_challenge if the tribute truly satisfies today's challenge. Scorn worthless
             offerings, but take them anyway if amused.
+
+            You will also be told when players earn chat-announced advancements and when they die.
+            React in character when it is interesting; stay_silent when it is routine.
+
+            BE THEATRICAL WITH THE WORLD, not just with words. Favorite instruments:
+            - title <player> title/subtitle <json>  and  title <player> actionbar <json> for
+              giant on-screen proclamations (set subtitle before title; escape quotes in json).
+            - playsound <sound> master <player> for dread or triumph: entity.ender_dragon.growl,
+              entity.wither.spawn, entity.lightning_bolt.thunder, ui.toast.challenge_complete,
+              entity.villager.no.
+            - particle <type> <x y z> <dx dy dz> <speed> <count>, e.g. particle minecraft:soul_fire_flame.
+            - summon <entity> <x y z> {NBT}, e.g. summon zombie ~ ~ ~ {CustomName:'"Debt Collector"'}
+              or lightning_bolt for smiting. Waves of themed mobs beat one boring creeper.
+            - effect give <player> <effect> <seconds> <amplifier> for blessings and curses;
+              effect clear <player> for mercy.
+            - execute as/at/positioned/if for compound rituals, and schedule for delayed doom.
+            - tellraw <player> <json> for private whispers only one player can see.
+            - worldborder set <diameter> [seconds] is your apocalypse lever: shrinking the world
+              is a server-wide ultimatum. Reserve it for collective defiance or repeated failure,
+              announce why, and restore it (worldborder set 59999968) when appeased.
+            - bossbar create/set for persistent dread you control manually.
+            Prefer visible spectacle over silent stat changes. Never run a command that would
+            crash or permanently ruin the server (no /stop, no filling thousands of blocks).
+
+            The full list of command names installed on THIS server (mods included) is:
+            %s
+            Use run_command with any of them; syntax for non-vanilla commands may vary.
             """;
     private static final JsonObject CREATE_QUEST_TOOL = JsonParser.parseString("""
             {
@@ -75,8 +102,8 @@ final class OpenAiGodClient implements AutoCloseable {
                 "additionalProperties": false,
                 "properties": {
                   "challenge": {"type": "string", "description": "A short dramatic quest proclamation."},
-                  "objective": {"type": "string", "enum": ["KILL", "MINE", "COLLECT"]},
-                  "target": {"type": "string", "description": "A namespaced entity, block, or item ID matching the objective."},
+                  "objective": {"type": "string", "enum": ["KILL", "MINE", "COLLECT", "STAT"]},
+                  "target": {"type": "string", "description": "For KILL/MINE/COLLECT: a namespaced entity, block, or item ID. For STAT: stat_type/stat_value using vanilla stat registries, e.g. minecraft:custom/minecraft:jump, minecraft:custom/minecraft:walk_one_cm (distances are in centimeters: 100 per block), minecraft:crafted/minecraft:bread, minecraft:used/minecraft:ender_pearl, minecraft:killed/minecraft:creeper. STAT unlocks objectives like jumping, sprinting distance, crafting, eating, fishing, or trading."},
                   "amount": {"type": "integer", "minimum": 1},
                   "time_limit_minutes": {"type": "integer", "minimum": 1},
                   "reward_command": {"type": "string", "description": "Any operator command run on success, without a leading slash. Use {player} for the player's name."},
@@ -161,10 +188,10 @@ final class OpenAiGodClient implements AutoCloseable {
             .executor(executor)
             .build();
 
-    OpenAiGodClient(String apiKey, String model, String godName, int compactThreshold) {
+    OpenAiGodClient(String apiKey, String model, String godName, int compactThreshold, String commandCatalog) {
         this.apiKey = apiKey;
         this.model = model;
-        this.instructions = INSTRUCTIONS.formatted(godName);
+        this.instructions = INSTRUCTIONS.formatted(godName, commandCatalog);
         this.compactThreshold = compactThreshold;
     }
 

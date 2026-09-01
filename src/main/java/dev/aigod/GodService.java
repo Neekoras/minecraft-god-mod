@@ -1,6 +1,7 @@
 package dev.aigod;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -28,10 +29,11 @@ final class GodService implements AutoCloseable {
     private boolean processing;
 
     GodService(MinecraftServer server, String apiKey, String model, String godName, int compactThreshold,
-               QuestStore questStore, DailyStore dailyStore, ConversationStore conversationStore) {
+               String commandCatalog, QuestStore questStore, DailyStore dailyStore,
+               ConversationStore conversationStore) {
         this.server = server;
         this.godName = godName;
-        this.client = new OpenAiGodClient(apiKey, model, godName, compactThreshold);
+        this.client = new OpenAiGodClient(apiKey, model, godName, compactThreshold, commandCatalog);
         this.quests = new QuestManager(server, questStore, this::deliverConsequence);
         this.daily = new DailyChallengeManager(server, this, quests, dailyStore);
         this.conversationStore = conversationStore;
@@ -43,17 +45,34 @@ final class GodService implements AutoCloseable {
         processNext();
     }
 
-    void requestDailyChallenge(ServerPlayer player, long deadlineDayTime, Runnable onIssued, Runnable onFailed) {
+    void requestDailyChallenge(ServerPlayer player, long deadlineDayTime, long day,
+                               List<String> pastChallenges, Runnable onIssued, Runnable onFailed) {
         pendingDailyDeadline.put(player.getUUID(), deadlineDayTime);
+        String history = pastChallenges.isEmpty()
+                ? "This is their first daily challenge ever; make it a memorable initiation."
+                : "Their recent daily challenges, oldest first, which you must NOT repeat or closely echo:\n- "
+                        + String.join("\n- ", pastChallenges);
         ChatTurn turn = new ChatTurn(player.getUUID(), """
-                A new Minecraft day dawns. Issue today's daily challenge to %s with create_quest now.
-                Make it genuinely fun and genuinely hard, different from their previous challenges, and
-                achievable before sundown from the live state below. Set time_limit_minutes to any value;
-                the deadline is overridden to sundown of this day. Proclaim the challenge in chat.
-                """.formatted(player.getGameProfile().getName()));
+                A new Minecraft day dawns (server day %d). Issue today's daily challenge to %s with
+                create_quest now. Make it genuinely fun and genuinely hard, scaled to how long the
+                server has lived and to their gear in the live state below, and achievable before
+                sundown. Set time_limit_minutes to any value; the deadline is overridden to sundown
+                of this day. Proclaim the challenge in chat with theatrical flair.
+                %s
+                """.formatted(day, player.getGameProfile().getName(), history));
         turn.systemEvent = true;
         turn.onSuccess = onIssued;
         turn.onFailure = onFailed;
+        queue.addLast(turn);
+        processNext();
+    }
+
+    void advancementEarned(ServerPlayer player, String title, String description) {
+        ChatTurn turn = new ChatTurn(player.getUUID(), """
+                %s just earned the advancement "%s" (%s). React if it moves you: praise, envy,
+                a small gift, an ominous remark, or stay_silent for routine milestones.
+                """.formatted(player.getGameProfile().getName(), title, description));
+        turn.systemEvent = true;
         queue.addLast(turn);
         processNext();
     }
@@ -180,6 +199,7 @@ final class GodService implements AutoCloseable {
         Quest quest = quests.create(player, arguments, dailyDeadline);
         player.sendSystemMessage(Component.literal("§eObjective: %s %s × %d."
                 .formatted(quest.objective().name().toLowerCase(), quest.target(), quest.amount())));
+        if (quest.kind() == Quest.Kind.DAILY) dailyFanfare(player, quest);
         return "ok: %s quest created for %s: %s (%s %s x%d)%s".formatted(
                 quest.kind() == Quest.Kind.DAILY ? "daily" : "ad-hoc",
                 player.getGameProfile().getName(), quest.challenge(),
@@ -205,6 +225,15 @@ final class GodService implements AutoCloseable {
                     .formatted(name);
         }
         return "ok: quest of %s voided with no reward or punishment".formatted(name);
+    }
+
+    private void dailyFanfare(ServerPlayer player, Quest quest) {
+        String name = player.getGameProfile().getName();
+        quests.runOperatorCommand("title " + name + " times 10 70 20", player);
+        quests.runOperatorCommand("title " + name + " subtitle {\"text\":"
+                + new JsonPrimitive(quest.challenge()) + ",\"color\":\"gold\"}", player);
+        quests.runOperatorCommand("title " + name + " title {\"text\":\"Daily Challenge\",\"color\":\"red\",\"bold\":true}", player);
+        quests.runOperatorCommand("playsound minecraft:entity.ender_dragon.growl master " + name, player);
     }
 
     private void finishTurn() {
@@ -242,12 +271,13 @@ final class GodService implements AutoCloseable {
                 %s
 
                 Live server state:
-                difficulty=%s, daytime_ticks=%d, raining=%s, thundering=%s
+                difficulty=%s, day=%d, sky=%s, daytime_ticks=%d, raining=%s, thundering=%s
                 online_players=%d
                 %s
                 """.formatted(
                 lead.formatted(speaker.getGameProfile().getName(), turn.message),
-                server.getWorldData().getDifficulty(), level.getDayTime(),
+                server.getWorldData().getDifficulty(), DayCycle.day(level.getDayTime()),
+                DayCycle.phase(level.getDayTime()), level.getDayTime(),
                 level.isRaining(), level.isThundering(),
                 server.getPlayerCount(), players);
     }
