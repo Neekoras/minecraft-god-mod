@@ -40,7 +40,6 @@ final class GodService implements AutoCloseable {
     private final ArrayDeque<ChatTurn> queue = new ArrayDeque<>();
     private Long pendingGoalDeadline;
     private long pendingGoalDay;
-    private boolean pendingGoalTrial;
     private final List<DeferredCommand> deferredCommands = new ArrayList<>();
     private final List<ScheduledEvent> scheduledEvents = new ArrayList<>();
     private final Map<UUID, Set<String>> completedAdvancements = new HashMap<>();
@@ -55,7 +54,7 @@ final class GodService implements AutoCloseable {
         this.server = server;
         this.godName = godName;
         this.client = new OpenAiGodClient(apiKey, model, godName, compactThreshold);
-        this.quests = new QuestManager(server, questStore, this::deliverConsequence);
+        this.quests = new QuestManager(server, questStore);
         this.daily = new DailyChallengeManager(server, this, dailyStore);
         this.conversationStore = conversationStore;
         this.scheduleStore = scheduleStore;
@@ -65,8 +64,9 @@ final class GodService implements AutoCloseable {
 
     void hear(ServerPlayer player, String message) {
         long nowMillis = System.currentTimeMillis();
-        ChatTurn pending = pendingChatTurn(player.getUUID(), nowMillis);
-        if (pending == null) {
+        ChatTurn pending = queue.peekLast();
+        if (pending == null || pending.systemEvent || pending.started
+                || !pending.playerId.equals(player.getUUID()) || !pending.isRecent(nowMillis)) {
             queue.addLast(new ChatTurn(player.getUUID(), message, nowMillis));
         } else {
             pending.appendMessage(message, nowMillis);
@@ -74,23 +74,8 @@ final class GodService implements AutoCloseable {
         processNext();
     }
 
-    private ChatTurn pendingChatTurn(UUID playerId, long nowMillis) {
-        Iterator<ChatTurn> turns = queue.descendingIterator();
-        ChatTurn newest = null;
-        int pendingCount = 0;
-        while (turns.hasNext()) {
-            ChatTurn turn = turns.next();
-            if (!turn.systemEvent && !turn.started && turn.playerId.equals(playerId)) {
-                if (newest == null) newest = turn;
-                pendingCount++;
-                if (turn.isRecent(nowMillis)) return turn;
-            }
-        }
-        return pendingCount >= ChatTurn.MAX_PENDING_PER_PLAYER ? newest : null;
-    }
-
-    void recordKill(ServerPlayer player, String entityId, String victimName) {
-        quests.recordKill(player, entityId, victimName);
+    void recordKill(ServerPlayer player, String entityId) {
+        quests.recordKill(player, entityId);
         daily.recordKill(entityId);
     }
 
@@ -99,36 +84,23 @@ final class GodService implements AutoCloseable {
         daily.recordMine(blockId);
     }
 
-    void requestDailyGoal(ServerPlayer speaker, long deadlineDayTime, long day, boolean trial,
+    void requestDailyGoal(ServerPlayer speaker, long deadlineDayTime, long day,
                           List<String> pastGoals, Runnable onIssued, Runnable onFailed) {
         pendingGoalDeadline = deadlineDayTime;
         pendingGoalDay = day;
-        pendingGoalTrial = trial;
         String history = pastGoals.isEmpty()
                 ? "This is the server's first daily goal ever; make it a memorable initiation."
                 : "Recent daily goals, oldest first, which you must NOT repeat or closely echo:\n- "
                         + String.join("\n- ", pastGoals);
-        String brief = trial
-                ? """
-                  Today is a TRIAL DAY, the seventh-day reckoning. Before setting the goal, STAGE
-                  the trial with run_command: summon a themed boss encounter near the players
-                  (a wither, or elite waves of custom-named mobs) worthy of the occasion. Then set
-                  the goal with create_daily_goal using a KILL objective matching what you
-                  summoned. Trials deserve a far richer reward and a far harsher failure than an
-                  ordinary day.
-                  """
-                : """
-                  Set today's ONE server-wide goal with create_daily_goal now. Every player's
-                  contributions pool into the same total, so size the amount for the whole server,
-                  genuinely fun and genuinely hard, and achievable before sundown from the live
-                  state below.
-                  """;
         ChatTurn turn = new ChatTurn(speaker.getUUID(), """
-                A new Minecraft day dawns (server day %d, %d players online). %s
-                create_daily_goal posts the one announcement with a full-screen title; do not
-                announce it again with run_command or repeat it in your reply.
+                A new Minecraft day dawns (server day %d, %d players online). Set today's ONE
+                server-wide goal with create_daily_goal now. Make it a clear next step in the
+                world's long survival arc toward defeating the Ender Dragon, sized for everyone
+                online, fun, hard, and achievable before sundown. Base it on the players' actual
+                biomes, dimensions, equipment, and nearby world shown in live state. The native boss
+                bar will keep it visible, so do not announce it again or repeat it in your reply.
                 %s
-                """.formatted(day, server.getPlayerCount(), brief.strip(), history));
+                """.formatted(day, server.getPlayerCount(), history));
         turn.systemEvent = true;
         turn.onSuccess = onIssued;
         turn.onFailure = onFailed;
@@ -167,19 +139,6 @@ final class GodService implements AutoCloseable {
         processNext();
     }
 
-    private void deliverConsequence(ServerPlayer player, Quest quest) {
-        ChatTurn turn = new ChatTurn(player.getUUID(), """
-                The sun has set and %s FAILED today's daily challenge: "%s" (progress %d/%d %s).
-                Deliver a fitting consequence right now using run_command, matched to the challenge
-                they failed (mob ambushes, lightning, traps, losses). Briefly tell them what happened.
-                """.formatted(player.getGameProfile().name(), quest.challenge(),
-                quest.progress(), quest.amount(), quest.target()));
-        turn.systemEvent = true;
-        turn.fallbackCommand = quest.punishmentCommand();
-        queue.addLast(turn);
-        processNext();
-    }
-
     void playerDied(ServerPlayer player, String deathMessage) {
         ChatTurn turn = new ChatTurn(player.getUUID(), """
                 %s just died: "%s". React as you see fit: mock them, mourn them, avenge them,
@@ -214,6 +173,7 @@ final class GodService implements AutoCloseable {
         ticks++;
         runDeferredCommands();
         runScheduledEvents();
+        processNext();
         if (ticks % 20 == 0) {
             detectAdvancements();
             refreshAdminState();
@@ -232,6 +192,7 @@ final class GodService implements AutoCloseable {
         if (processing) return;
         ChatTurn turn = queue.peekFirst();
         if (turn == null) return;
+        if (!turn.systemEvent && !turn.ready(System.currentTimeMillis())) return;
         ServerPlayer player = server.getPlayerList().getPlayer(turn.playerId);
         if (player == null) {
             if (turn.onFailure != null) turn.onFailure.run();
@@ -253,9 +214,7 @@ final class GodService implements AutoCloseable {
             conversationId = turn.baseConversationId;
             if (player != null) {
                 Throwable cause = error != null && error.getCause() != null ? error.getCause() : error;
-                if (turn.fallbackCommand != null) {
-                    quests.runOperatorCommand(turn.fallbackCommand, player);
-                } else if (!turn.systemEvent) {
+                if (!turn.systemEvent) {
                     player.sendSystemMessage(Component.literal("§cThe AI God cannot answer: "
                             + (cause == null ? "speaker vanished" : cause.getMessage())));
                 }
@@ -271,7 +230,7 @@ final class GodService implements AutoCloseable {
         boolean requestsSilence = response.toolCalls().stream()
                 .anyMatch(call -> call.name().equals("stay_silent"));
         boolean createsQuest = response.toolCalls().stream()
-                .anyMatch(call -> call.name().equals("create_contract") || call.name().equals("create_daily_goal"));
+                .anyMatch(call -> call.name().equals("create_challenge") || call.name().equals("create_daily_goal"));
         if (!response.message().isBlank() && !turn.silent && !requestsSilence && !createsQuest) {
             say(response.message());
         }
@@ -300,10 +259,10 @@ final class GodService implements AutoCloseable {
                 case "inspect_view" -> inspectView(player);
                 case "schedule_event" -> scheduleEvent(call.arguments(), player);
                 case "cancel_scheduled_event" -> cancelScheduledEvent(call.arguments());
-                case "create_contract" -> createQuest(turn, call.arguments(), player);
-                case "create_daily_goal" -> createDailyGoal(turn, call.arguments(), player);
-                case "complete_contract" -> completeChallenge(call.arguments());
-                case "cancel_contract" -> cancelQuest(call.arguments());
+                case "create_challenge" -> createQuest(turn, call.arguments(), player);
+                case "create_daily_goal" -> createDailyGoal(turn, call.arguments());
+                case "complete_challenge" -> completeChallenge(call.arguments());
+                case "cancel_challenge" -> cancelQuest(call.arguments());
                 case "stay_silent" -> {
                     turn.silent = true;
                     yield "Silence selected. No chat message will be posted for this turn.";
@@ -488,10 +447,14 @@ final class GodService implements AutoCloseable {
         state.addProperty("raining", server.overworld().isRaining());
         state.addProperty("thundering", server.overworld().isThundering());
         state.addProperty("queue_depth", queue.size());
+        state.addProperty("processing", processing);
+        state.addProperty("server_goal", daily.statusLine());
+        state.add("goal", daily.adminState());
         JsonArray players = new JsonArray();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             JsonObject value = new JsonObject();
             value.addProperty("name", player.getGameProfile().name());
+            value.addProperty("uuid", player.getUUID().toString());
             value.addProperty("health", player.getHealth() / 2.0F);
             value.addProperty("max_health", player.getMaxHealth() / 2.0F);
             value.addProperty("hunger", player.getFoodData().getFoodLevel());
@@ -499,8 +462,10 @@ final class GodService implements AutoCloseable {
             value.addProperty("y", Math.round(player.getY()));
             value.addProperty("z", Math.round(player.getZ()));
             value.addProperty("dimension", player.level().dimension().identifier().toString());
+            value.addProperty("biome", player.level().getBiome(player.blockPosition()).unwrapKey()
+                    .map(key -> key.identifier().toString()).orElse("unknown"));
             value.addProperty("holding", heldItem(player));
-            value.addProperty("quest", quests.status(player));
+            value.addProperty("challenge", quests.status(player));
             value.addProperty("chat_visibility", player.getChatVisibility().name().toLowerCase());
             players.add(value);
         }
@@ -545,24 +510,23 @@ final class GodService implements AutoCloseable {
     }
 
     private String createQuest(ChatTurn turn, JsonObject arguments, ServerPlayer player) {
-        Quest quest = quests.create(player, arguments, null);
+        Quest quest = quests.create(player, arguments);
         turn.silent = true;
         say(quest.challenge());
-        return "ok: contract created for %s: %s (%s %s x%d)".formatted(
+        return "ok: challenge created for %s: %s (%s %s x%d)".formatted(
                 player.getGameProfile().name(), quest.challenge(),
                 quest.objective(), quest.target(), quest.amount());
     }
 
-    private String createDailyGoal(ChatTurn turn, JsonObject arguments, ServerPlayer player) {
+    private String createDailyGoal(ChatTurn turn, JsonObject arguments) {
         if (pendingGoalDeadline == null) {
             throw new IllegalArgumentException(
                     "No daily goal was requested; today's goal already exists or it is past sundown.");
         }
-        ServerGoal goal = daily.createGoal(arguments, pendingGoalDeadline, pendingGoalDay, pendingGoalTrial);
+        ServerGoal goal = daily.createGoal(arguments, pendingGoalDeadline, pendingGoalDay);
         pendingGoalDeadline = null;
         turn.silent = true;
         say(goal.challenge());
-        goalFanfare(player, goal);
         return "ok: server goal set for day %d: %s (%s %s x%d shared by all players; deadline is sundown)"
                 .formatted(goal.day(), goal.challenge(), goal.objective(), goal.target(), goal.amount());
     }
@@ -579,19 +543,7 @@ final class GodService implements AutoCloseable {
         ServerPlayer target = server.getPlayerList().getPlayerByName(name);
         if (target == null) throw new IllegalArgumentException("No online player named " + name);
         quests.cancel(target);
-        return "ok: contract of %s voided with no reward or punishment".formatted(name);
-    }
-
-    private void goalFanfare(ServerPlayer player, ServerGoal goal) {
-        String heading = goal.trial() ? "TRIAL DAY" : "Today's Goal";
-        String color = goal.trial() ? "dark_red" : "red";
-        String sound = goal.trial() ? "minecraft:entity.wither.spawn" : "minecraft:entity.ender_dragon.growl";
-        quests.runOperatorCommand("title @a times 10 70 20", player);
-        quests.runOperatorCommand("title @a subtitle {\"text\":"
-                + new JsonPrimitive(goal.challenge()) + ",\"color\":\"gold\"}", player);
-        quests.runOperatorCommand("title @a title {\"text\":\"" + heading
-                + "\",\"color\":\"" + color + "\",\"bold\":true}", player);
-        quests.runOperatorCommand("playsound " + sound + " master @a", player);
+        return "ok: challenge for %s cancelled with no reward or punishment".formatted(name);
     }
 
     private void finishTurn() {
@@ -627,9 +579,11 @@ final class GodService implements AutoCloseable {
                     .append(" rotation=").append("%.1f %.1f".formatted(
                             player.getYRot(), player.getXRot()))
                     .append(" dimension=").append(player.level().dimension().identifier())
+                    .append(" biome=").append(player.level().getBiome(player.blockPosition()).unwrapKey()
+                            .map(key -> key.identifier().toString()).orElse("unknown"))
                     .append(" holding=[").append(heldItem(player)).append(']')
                     .append(" inventory=[").append(inventory(player)).append(']')
-                    .append(" contract=[").append(quests.status(player)).append(']');
+                    .append(" challenge=[").append(quests.status(player)).append(']');
         }
         String lead = turn.systemEvent
                 ? "Automatic server event concerning %s: %s"
@@ -638,7 +592,8 @@ final class GodService implements AutoCloseable {
                   current_speaker=%s
                   current_speaker_uuid=%s
                   identity_rule=In this turn, I/me/my/you/your refer only to current_speaker unless another player is explicitly named.
-                  current_speaker_quest=%s
+                  current_speaker_challenge=%s
+                  sent_at_epoch_ms=%d
                   message=%s
                   """;
         String schedules = scheduledEvents.isEmpty() ? "" : "\nActive scheduled events:\n"
@@ -655,16 +610,17 @@ final class GodService implements AutoCloseable {
                 difficulty=%s, day=%d, sky=%s, daytime_ticks=%d, raining=%s, thundering=%s
                 online_players=%d
                 server_goal=[%s]
+                current_speaker_view=[%s]
                 %s%s
                 """.formatted(
                 turn.systemEvent
                         ? lead.formatted(speaker.getGameProfile().name(), turn.message())
                         : lead.formatted(speaker.getGameProfile().name(), speaker.getUUID(),
-                                quests.status(speaker), turn.message()),
+                                quests.status(speaker), turn.lastMessageAtMillis, turn.message()),
                 server.getWorldData().getDifficulty(), DayCycle.day(level.getOverworldClockTime()),
                 DayCycle.phase(level.getOverworldClockTime()), level.getOverworldClockTime(),
                 level.isRaining(), level.isThundering(),
-                server.getPlayerCount(), daily.statusLine(), players, schedules);
+                server.getPlayerCount(), daily.statusLine(), inspectView(speaker), players, schedules);
     }
 
     private static String heldItem(ServerPlayer player) {
@@ -692,18 +648,14 @@ final class GodService implements AutoCloseable {
 
     static final class ChatTurn {
         private static final long BURST_WINDOW_MILLIS = 2_000;
-        private static final int MAX_PENDING_PER_PLAYER = 2;
-        private static final int MAX_BURST_MESSAGES = 5;
 
         private final UUID playerId;
-        private final List<BurstMessage> messages = new ArrayList<>();
-        private final long firstMessageAtMillis;
+        private final List<String> messages = new ArrayList<>();
         private long lastMessageAtMillis;
         private boolean started;
         private String baseConversationId;
         private boolean silent;
         private boolean systemEvent;
-        private String fallbackCommand;
         private Runnable onSuccess;
         private Runnable onFailure;
 
@@ -713,66 +665,25 @@ final class GodService implements AutoCloseable {
 
         ChatTurn(UUID playerId, String message, long atMillis) {
             this.playerId = playerId;
-            this.firstMessageAtMillis = atMillis;
             this.lastMessageAtMillis = atMillis;
-            this.messages.add(new BurstMessage(message, atMillis));
-        }
-
-        void appendMessage(String message) {
-            appendMessage(message, System.currentTimeMillis());
+            this.messages.add(message);
         }
 
         void appendMessage(String message, long atMillis) {
             lastMessageAtMillis = atMillis;
-            BurstMessage last = messages.getLast();
-            if (last.text.equals(message)) {
-                last.repeat(atMillis);
-                return;
-            }
-            if (messages.size() < MAX_BURST_MESSAGES) {
-                messages.add(new BurstMessage(message, atMillis));
-            } else {
-                messages.set(MAX_BURST_MESSAGES - 1, new BurstMessage(message, atMillis));
-            }
+            if (!messages.getLast().equals(message)) messages.add(message);
         }
 
         boolean isRecent(long nowMillis) {
             return nowMillis - lastMessageAtMillis <= BURST_WINDOW_MILLIS;
         }
 
-        String message() {
-            BurstMessage only = messages.getFirst();
-            if (messages.size() == 1 && only.repetitions == 1) return only.text;
-            StringBuilder burst = new StringBuilder("rapid messages from this player over ")
-                    .append(lastMessageAtMillis - firstMessageAtMillis)
-                    .append("ms, oldest to newest:");
-            for (BurstMessage item : messages) {
-                burst.append("\n- +").append(item.firstAtMillis - firstMessageAtMillis)
-                        .append("ms: ").append(item.text);
-                if (item.repetitions > 1) {
-                    burst.append(" (repeated ").append(item.repetitions).append(" times through +")
-                            .append(item.lastAtMillis - firstMessageAtMillis).append("ms)");
-                }
-            }
-            return burst.toString();
+        boolean ready(long nowMillis) {
+            return nowMillis - lastMessageAtMillis >= BURST_WINDOW_MILLIS;
         }
 
-        private static final class BurstMessage {
-            private final String text;
-            private final long firstAtMillis;
-            private long lastAtMillis;
-            private int repetitions = 1;
-
-            private BurstMessage(String text, long atMillis) {
-                this.text = text;
-                this.firstAtMillis = atMillis;
-                this.lastAtMillis = atMillis;
-            }
-
-            private void repeat(long atMillis) {
-                repetitions++;
-                lastAtMillis = atMillis;
-            }
+        String message() {
+            return String.join("\n", messages);
         }
     }
 

@@ -13,32 +13,23 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
-import java.util.function.BiConsumer;
 
 final class QuestManager {
     private final MinecraftServer server;
     private final QuestStore store;
-    private final BiConsumer<ServerPlayer, Quest> onDailyFailure;
     private final Map<UUID, Quest> quests = new HashMap<>();
     private int ticks;
 
-    QuestManager(MinecraftServer server, QuestStore store,
-                 BiConsumer<ServerPlayer, Quest> onDailyFailure) {
+    QuestManager(MinecraftServer server, QuestStore store) {
         this.server = server;
         this.store = store;
-        this.onDailyFailure = onDailyFailure;
         for (Quest quest : store.load()) quests.put(quest.playerId(), quest);
     }
 
-    Optional<Quest> active(UUID playerId) {
-        return Optional.ofNullable(quests.get(playerId));
-    }
-
-    Quest create(ServerPlayer player, JsonObject arguments, Long dailyDeadlineDayTime) {
+    Quest create(ServerPlayer player, JsonObject arguments) {
         if (quests.containsKey(player.getUUID())) {
-            throw new IllegalArgumentException("This player already has an active contract.");
+            throw new IllegalArgumentException("This player already has an active challenge.");
         }
 
         Quest.Objective objective = Quest.Objective.valueOf(requiredString(arguments, "objective"));
@@ -53,49 +44,33 @@ final class QuestManager {
             case STAT -> player.getStats().getValue(resolveStat(target));
             default -> 0;
         };
-        boolean daily = dailyDeadlineDayTime != null;
         Quest quest = new Quest(
                 player.getUUID(),
                 requiredString(arguments, "challenge"),
                 objective,
                 target,
                 amount,
-                daily ? Long.MAX_VALUE : System.currentTimeMillis() + minutes * 60_000L,
-                daily ? dailyDeadlineDayTime : 0,
-                daily ? Quest.Kind.DAILY : Quest.Kind.ADHOC,
+                System.currentTimeMillis() + minutes * 60_000L,
                 command(arguments, "reward_command"),
                 command(arguments, "punishment_command"),
                 baseline
         );
-        String targetPlayer = arguments.has("target_player")
-                ? arguments.get("target_player").getAsString().strip() : "";
-        if (!targetPlayer.isEmpty()) {
-            if (objective != Quest.Objective.KILL || !target.equals("minecraft:player")) {
-                throw new IllegalArgumentException(
-                        "target_player only works with objective KILL and target minecraft:player");
-            }
-            if (server.getPlayerList().getPlayerByName(targetPlayer) == null) {
-                throw new IllegalArgumentException("No online player named " + targetPlayer);
-            }
-            quest.setTargetPlayer(targetPlayer);
-        }
         quests.put(player.getUUID(), quest);
         save();
         return quest;
     }
 
-    void recordKill(ServerPlayer player, String entityId, String victimName) {
-        record(player, Quest.Objective.KILL, entityId, victimName);
+    void recordKill(ServerPlayer player, String entityId) {
+        record(player, Quest.Objective.KILL, entityId);
     }
 
     void recordMine(ServerPlayer player, String blockId) {
-        record(player, Quest.Objective.MINE, blockId, null);
+        record(player, Quest.Objective.MINE, blockId);
     }
 
     void tick() {
         if (++ticks % 20 != 0) return;
         long nowMillis = System.currentTimeMillis();
-        long nowDayTime = server.overworld().getOverworldClockTime();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             Quest quest = quests.get(player.getUUID());
             if (quest == null) continue;
@@ -107,15 +82,11 @@ final class QuestManager {
                     && quest.recordTotal(player.getStats().getValue(resolveStat(quest.target())))) {
                 changed(player, quest);
             }
-            if (quest.expired(nowMillis, nowDayTime)) {
+            if (quest.expired(nowMillis)) {
                 quests.remove(player.getUUID());
                 save();
-                if (quest.kind() == Quest.Kind.DAILY) {
-                    onDailyFailure.accept(player, quest);
-                } else {
-                    player.sendSystemMessage(Component.literal("§cpunishment triggered"));
-                    runOperatorCommand(quest.punishmentCommand(), player);
-                }
+                player.sendSystemMessage(Component.literal("§cchallenge failed"));
+                runOperatorCommand(quest.punishmentCommand(), player);
             }
         }
     }
@@ -123,7 +94,7 @@ final class QuestManager {
     Quest cancel(ServerPlayer player) {
         Quest quest = quests.remove(player.getUUID());
         if (quest == null) {
-            throw new IllegalArgumentException(player.getGameProfile().name() + " has no active contract.");
+            throw new IllegalArgumentException(player.getGameProfile().name() + " has no active challenge.");
         }
         save();
         return quest;
@@ -132,38 +103,30 @@ final class QuestManager {
     String forceComplete(ServerPlayer player) {
         Quest quest = quests.get(player.getUUID());
         if (quest == null) {
-            throw new IllegalArgumentException(player.getGameProfile().name() + " has no active contract.");
+            throw new IllegalArgumentException(player.getGameProfile().name() + " has no active challenge.");
         }
         quest.forceComplete();
         changed(player, quest);
-        return "ok: contract of %s marked complete; reward command ran".formatted(player.getGameProfile().name());
+        return "ok: challenge for %s marked complete; reward command ran".formatted(player.getGameProfile().name());
     }
 
     String status(ServerPlayer player) {
         Quest quest = quests.get(player.getUUID());
-        if (quest == null) return "no active contract";
-        String remaining;
-        if (quest.deadlineDayTime() > 0) {
-            long ticksLeft = Math.max(0, quest.deadlineDayTime() - server.overworld().getOverworldClockTime());
-            remaining = "%d game ticks until sundown".formatted(ticksLeft);
-        } else {
-            long seconds = Math.max(0, (quest.deadlineMillis() - System.currentTimeMillis()) / 1_000);
-            remaining = "%dm %02ds remain".formatted(seconds / 60, seconds % 60);
-        }
-        String victim = quest.targetPlayer() == null ? "" : " (target: %s)".formatted(quest.targetPlayer());
-        return "%s — %d/%d %s%s; %s".formatted(
+        if (quest == null) return "no active challenge";
+        long seconds = Math.max(0, (quest.deadlineMillis() - System.currentTimeMillis()) / 1_000);
+        return "%s — %d/%d %s; %dm %02ds remain".formatted(
                 quest.challenge(), quest.progress(), quest.amount(), prettyTarget(quest.target()),
-                victim, remaining);
+                seconds / 60, seconds % 60);
     }
 
-    private void record(ServerPlayer player, Quest.Objective objective, String target, String victimName) {
+    private void record(ServerPlayer player, Quest.Objective objective, String target) {
         Quest quest = quests.get(player.getUUID());
-        if (quest != null && quest.record(objective, target, victimName)) changed(player, quest);
+        if (quest != null && quest.record(objective, target)) changed(player, quest);
     }
 
     private void changed(ServerPlayer player, Quest quest) {
         if (quest.complete()) {
-            player.sendSystemMessage(Component.literal("§6contract complete. reward granted"));
+            player.sendSystemMessage(Component.literal("§6challenge complete. reward granted"));
             runOperatorCommand(quest.rewardCommand(), player);
             quests.remove(player.getUUID());
         } else {

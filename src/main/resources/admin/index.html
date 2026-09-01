@@ -3,60 +3,73 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Minecraft / admin</title>
+    <title>Minecraft, with ChatGPT — admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..600&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
     <header>
-      <div>
-        <p class="label">admin.mcgodmod.com</p>
-        <h1>Server activity</h1>
-      </div>
+      <a class="identity" href="/"><img src="https://raw.githubusercontent.com/Simplexity-Development/Entity-Icons/main/assets/png_files/axolotl/8x8/gold.png" width="24" height="24" alt="">mcgodmod.com <span>/ admin</span></a>
       <div class="connection"><i></i><span id="connection">connecting</span></div>
     </header>
 
-    <main>
+    <main id="main">
+      <section class="intro">
+        <div>
+          <h1>World activity</h1>
+        </div>
+      </section>
+
       <section class="summary" aria-label="Activity summary">
-        <div><span>items</span><strong id="event-count">0</strong></div>
-        <div><span>model</span><strong id="model-name">—</strong></div>
-        <div><span>tool calls</span><strong id="tool-count">0</strong></div>
-        <div><span>online</span><strong id="online-count">0</strong></div>
+        <div><span>Turns</span><strong id="turn-count">0</strong></div>
+        <div><span>Model</span><strong id="model-name">—</strong></div>
+        <div><span>Tool calls</span><strong id="tool-count">0</strong></div>
+        <div><span>Players online</span><strong id="online-count">0</strong></div>
       </section>
 
-      <section class="live-grid">
-        <div class="live-panel">
-          <div class="panel-heading"><span>players</span><small id="world-state">—</small></div>
-          <div id="players" class="players"><p class="empty-inline">nobody online</p></div>
-        </div>
-        <div class="live-panel">
-          <div class="panel-heading"><span>scheduled</span><small id="queue-depth">queue 0</small></div>
-          <div id="schedules" class="schedules"><p class="empty-inline">nothing scheduled</p></div>
-        </div>
-      </section>
+      <div class="workspace">
+        <section class="conversation-column">
+          <div class="activity-heading">
+            <div><h2>Conversation</h2><p>Player messages, model replies, and command results in order.</p></div>
+            <details class="filter-menu">
+              <summary id="filter-label">Everyone</summary>
+              <div id="speaker-filter" class="filter-content" role="menu" aria-label="Filter turns by player">
+                <button type="button" role="menuitemradio" aria-checked="true" class="active" data-value="all">Everyone</button>
+                <button type="button" role="menuitemradio" aria-checked="false" data-value="errors">Errors only</button>
+              </div>
+            </details>
+          </div>
+          <section id="turns" class="turns" aria-live="polite"></section>
+          <button id="load-earlier" class="load-earlier" type="button" hidden>Load earlier turns</button>
+          <p id="empty" class="empty">waiting for the first turn</p>
+        </section>
 
-      <nav aria-label="Event filters">
-        <button class="active" data-filter="all">all</button>
-        <button data-filter="input">input</button>
-        <button data-filter="model">model</button>
-        <button data-filter="tool">tools</button>
-        <button data-filter="reasoning">reasoning</button>
-        <button data-filter="error">errors</button>
-      </nav>
+        <aside class="world-column">
+          <section class="goal-panel">
+            <div class="goal-copy">
+              <span>Shared goal</span>
+              <strong id="server-goal">Waiting for dawn</strong>
+              <small id="goal-detail">Every player contributes to the same objective.</small>
+            </div>
+            <div class="goal-value"><strong id="goal-progress">—</strong><span id="goal-deadline">No active goal</span></div>
+            <div class="progress" aria-hidden="true"><i id="goal-progress-bar"></i></div>
+          </section>
 
-      <section id="events" class="events" aria-live="polite"></section>
-      <p id="empty" class="empty">waiting for the server</p>
+          <section class="live-grid">
+            <div class="panel">
+              <div class="panel-heading"><span>Players</span><small id="world-state">—</small></div>
+              <div id="players"><p class="empty-inline">nobody online</p></div>
+            </div>
+            <div class="panel">
+              <div class="panel-heading"><span>Scheduled actions</span><small id="queue-depth">queue 0</small></div>
+              <div id="schedules"><p class="empty-inline">nothing scheduled</p></div>
+            </div>
+          </section>
+        </aside>
+      </div>
     </main>
-
-    <template id="event-template">
-      <article>
-        <div class="event-meta">
-          <span class="sequence"></span>
-          <span class="event-type"></span>
-          <span class="event-player"></span>
-        </div>
-        <pre></pre>
-      </article>
-    </template>
     <script src="/app.js" defer></script>
   </body>
 </html>

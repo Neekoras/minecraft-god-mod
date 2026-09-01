@@ -68,14 +68,13 @@ final class DailyChallengeManager {
         if (speaker == null) return;
         lastAttemptTick = ticks;
         pending = true;
-        boolean trial = today > 0 && today % 7 == 0;
-        god.requestDailyGoal(speaker, DayCycle.sundownOf(now), today, trial, List.copyOf(state.pastGoals),
+        god.requestDailyGoal(speaker, DayCycle.sundownOf(now), today, List.copyOf(state.pastGoals),
                 () -> pending = false,
                 () -> pending = false);
     }
 
     /** Called by GodService when the god sets today's goal via create_daily_goal. */
-    ServerGoal createGoal(JsonObject arguments, long deadlineDayTime, long day, boolean trial) {
+    ServerGoal createGoal(JsonObject arguments, long deadlineDayTime, long day) {
         if (state.activeGoal != null) {
             throw new IllegalArgumentException("Today's server goal already exists.");
         }
@@ -88,7 +87,7 @@ final class DailyChallengeManager {
         if (amount < 1) throw new IllegalArgumentException("amount must be positive");
         ServerGoal goal = new ServerGoal(
                 required(arguments, "challenge"), objective, target, amount, day, deadlineDayTime,
-                command(arguments, "reward_command"), command(arguments, "punishment_command"), trial);
+                command(arguments, "reward_command"), command(arguments, "punishment_command"));
         pollTotals(goal);
         state.activeGoal = goal;
         state.remember(day, goal.challenge());
@@ -114,9 +113,27 @@ final class DailyChallengeManager {
                         QuestManager.prettyTarget(goal.target()), ticksLeft);
     }
 
+    JsonObject adminState() {
+        JsonObject value = new JsonObject();
+        ServerGoal goal = state.activeGoal;
+        value.addProperty("active", goal != null);
+        if (goal == null) return value;
+        value.addProperty("challenge", goal.challenge());
+        value.addProperty("objective", goal.objective().name().toLowerCase());
+        value.addProperty("target", QuestManager.prettyTarget(goal.target()));
+        value.addProperty("progress", goal.progress());
+        value.addProperty("amount", goal.amount());
+        value.addProperty("ticks_left", Math.max(0,
+                goal.deadlineDayTime() - server.overworld().getOverworldClockTime()));
+        return value;
+    }
+
     private void recordEvent(Quest.Objective objective, String target) {
         ServerGoal goal = state.activeGoal;
-        if (goal != null && goal.recordEvent(objective, target)) announceMilestone(goal);
+        if (goal != null && goal.recordEvent(objective, target)) {
+            announceMilestone(goal);
+            store.save(state);
+        }
     }
 
     private boolean pollTotals(ServerGoal goal) {
@@ -145,8 +162,7 @@ final class DailyChallengeManager {
 
     /** Keeps the HUD boss bar naming the goal, tracking progress, and reddening toward sundown. */
     private void updateBossBar(ServerGoal goal, long now) {
-        bossBar.setName(Component.literal("%s%s  •  %d/%d %s".formatted(
-                goal.trial() ? "TRIAL: " : "",
+        bossBar.setName(Component.literal("%s  •  %d/%d %s".formatted(
                 goal.challenge(), goal.progress(), goal.amount(), QuestManager.prettyTarget(goal.target()))));
         bossBar.setProgress(goal.amount() == 0 ? 0.0F
                 : Math.min(1.0F, (float) goal.progress() / goal.amount()));

@@ -25,7 +25,7 @@ class DailyStoreTest {
         state.remember(4, "mine 64 cobblestone together");
         state.activeGoal = new ServerGoal("mine 64 cobblestone together", Quest.Objective.MINE,
                 "minecraft:cobblestone", 64, 4, 108_000, "give {player} bread 4",
-                "summon lightning_bolt ~ ~ ~", false);
+                "summon lightning_bolt ~ ~ ~");
         store.save(state);
 
         DailyStore.State loaded = store.load();
@@ -36,14 +36,14 @@ class DailyStoreTest {
     }
 
     @Test
-    void unreadableOrLegacyFilesFallBackToAFreshState() throws Exception {
+    void migratesLegacyPerPlayerDayState() throws Exception {
         UUID player = UUID.randomUUID();
         Path path = directory.resolve("daily.json");
         Files.writeString(path, "{\"" + player + "\": 12}");
 
         DailyStore.State state = new DailyStore(path, LoggerFactory.getLogger(DailyStoreTest.class)).load();
 
-        assertEquals(-1, state.lastIssuedDay);
+        assertEquals(12, state.lastIssuedDay);
         assertTrue(state.pastGoals.isEmpty());
         assertNull(state.activeGoal);
     }

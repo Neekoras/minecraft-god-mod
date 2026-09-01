@@ -3,29 +3,69 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#090d16">
-    <meta name="description" content="A Minecraft server with one shared AI that hears every player and can change the world.">
+    <meta name="theme-color" content="#080808">
+    <meta name="description" content="Minecraft, with ChatGPT.">
     <title>Minecraft, with ChatGPT</title>
-    <link rel="icon" href="favicon.png?v=3" type="image/png">
-    <link rel="stylesheet" href="styles.css?v=2">
+    <link rel="icon" href="favicon.png?v=4" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=5">
   </head>
   <body>
     <main>
-      <section class="hero">
-        <h1>Minecraft,<br>with ChatGPT.</h1>
-        <span class="coming-soon">Coming soon</span>
+      <section class="page hero-page">
+        <img class="mark" src="https://raw.githubusercontent.com/Simplexity-Development/Entity-Icons/main/assets/png_files/axolotl/8x8/gold.png" width="40" height="40" alt="">
+        <div class="hero">
+          <h1>Minecraft,<br><span>with ChatGPT.</span></h1>
+        </div>
+      </section>
+
+      <section class="page feature chat-feature">
+        <div class="feature-copy">
+          <span>01</span>
+          <h2>Talk normally.</h2>
+          <p>There is no special command. Type in server chat and it hears you.</p>
+        </div>
+        <div class="game-chat">
+          <p><b>&lt;Steve&gt;</b> give me a diamond pickaxe</p>
+          <p class="god"><b>[AI God]</b> not yet. bring me 32 oak logs before sunset.</p>
+        </div>
+      </section>
+
+      <section class="page feature world-feature">
+        <div class="feature-copy">
+          <span>02</span>
+          <h2>The world answers.</h2>
+          <p>It can use every server command, set goals, reward the group, or make the problem worse.</p>
+        </div>
+        <div class="goal-demo">
+          <div><span>Shared goal</span><strong>Prepare the village before nightfall</strong></div>
+          <b>18 / 32</b>
+          <i><em></em></i>
+        </div>
+      </section>
+
+      <section class="page feature together-feature">
+        <div class="feature-copy">
+          <span>03</span>
+          <h2>Everyone is in it.</h2>
+          <p>One conversation. One shared goal. What each player does changes what happens next.</p>
+        </div>
+        <div class="players-demo">
+          <div><img src="https://mc-heads.net/avatar/Steve/48" alt=""><span>Steve</span><b>8.5 hearts</b></div>
+          <div><img src="https://mc-heads.net/avatar/Alex/48" alt=""><span>Alex</span><b>10 hearts</b></div>
+          <div class="god-row"><img src="https://raw.githubusercontent.com/Simplexity-Development/Entity-Icons/main/assets/png_files/axolotl/8x8/gold.png" alt=""><span>AI God</span><b>watching</b></div>
+        </div>
       </section>
     </main>
 
-    <div class="world" aria-hidden="true">
+    <div class="scene" aria-hidden="true">
       <div class="moon"></div>
       <div class="cloud cloud-one"></div>
       <div class="cloud cloud-two"></div>
-      <div class="cloud cloud-three"></div>
-      <div class="ridge ridge-far"></div>
-      <div class="ridge ridge-near"></div>
-      <div class="tree tree-one"><i></i></div>
-      <div class="tree tree-two"><i></i></div>
+      <div class="blocks blocks-back"></div>
+      <div class="blocks blocks-front"></div>
       <div class="ground"></div>
     </div>
   </body>

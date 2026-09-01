@@ -3,7 +3,7 @@
   "id": "ai_god",
   "version": "${version}",
   "name": "AI God",
-  "description": "A server-side AI deity that creates quests, rewards success, and punishes failure.",
+  "description": "One shared AI presence that guides and changes a Minecraft world.",
   "authors": ["Dennis"],
   "license": "MIT",
   "environment": "server",

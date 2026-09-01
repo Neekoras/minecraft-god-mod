@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ServerGoalTest {
     private static ServerGoal goal(Quest.Objective objective, String target, int amount) {
         return new ServerGoal("Together now", objective, target, amount,
-                3, 84_000, "give {player} diamond 1", "summon lightning_bolt ~ ~ ~", false);
+                3, 84_000, "give {player} diamond 1", "summon lightning_bolt ~ ~ ~");
     }
 
     @Test

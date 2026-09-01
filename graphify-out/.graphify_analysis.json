@@ -1,0 +1,597 @@
+{
+  "communities": {
+    "0": [
+      "net_minecraft_commands_commandsourcestack",
+      "net_minecraft_network_chat_component",
+      "net_minecraft_server_level_serverplayer",
+      "src_main_java_dev_aigod_aigodmod_aigodmod_oninitialize",
+      "src_main_java_dev_aigod_aigodmod_java_override",
+      "src_main_java_dev_aigod_godservice",
+      "src_main_java_dev_aigod_godservice_chatturn",
+      "src_main_java_dev_aigod_godservice_chatturn_appendmessage",
+      "src_main_java_dev_aigod_godservice_chatturn_chatturn",
+      "src_main_java_dev_aigod_godservice_chatturn_isrecent",
+      "src_main_java_dev_aigod_godservice_chatturn_message",
+      "src_main_java_dev_aigod_godservice_chatturn_ready",
+      "src_main_java_dev_aigod_godservice_commandoutcome",
+      "src_main_java_dev_aigod_godservice_deferredcommand",
+      "src_main_java_dev_aigod_godservice_godservice",
+      "src_main_java_dev_aigod_godservice_godservice_adminstate",
+      "src_main_java_dev_aigod_godservice_godservice_broadcastchat",
+      "src_main_java_dev_aigod_godservice_godservice_cancelquest",
+      "src_main_java_dev_aigod_godservice_godservice_cancelscheduledevent",
+      "src_main_java_dev_aigod_godservice_godservice_close",
+      "src_main_java_dev_aigod_godservice_godservice_commandhelp",
+      "src_main_java_dev_aigod_godservice_godservice_completechallenge",
+      "src_main_java_dev_aigod_godservice_godservice_currentadvancements",
+      "src_main_java_dev_aigod_godservice_godservice_detectadvancements",
+      "src_main_java_dev_aigod_godservice_godservice_execute",
+      "src_main_java_dev_aigod_godservice_godservice_finishturn",
+      "src_main_java_dev_aigod_godservice_godservice_handle",
+      "src_main_java_dev_aigod_godservice_godservice_hear",
+      "src_main_java_dev_aigod_godservice_godservice_helditem",
+      "src_main_java_dev_aigod_godservice_godservice_inspectview",
+      "src_main_java_dev_aigod_godservice_godservice_inventory",
+      "src_main_java_dev_aigod_godservice_godservice_operatorsource",
+      "src_main_java_dev_aigod_godservice_godservice_playerdied",
+      "src_main_java_dev_aigod_godservice_godservice_playerjoined",
+      "src_main_java_dev_aigod_godservice_godservice_processnext",
+      "src_main_java_dev_aigod_godservice_godservice_recordkill",
+      "src_main_java_dev_aigod_godservice_godservice_recordmine",
+      "src_main_java_dev_aigod_godservice_godservice_refreshadminstate",
+      "src_main_java_dev_aigod_godservice_godservice_requestdailygoal",
+      "src_main_java_dev_aigod_godservice_godservice_runcommand",
+      "src_main_java_dev_aigod_godservice_godservice_rundeferredcommands",
+      "src_main_java_dev_aigod_godservice_godservice_runoperatorcommand",
+      "src_main_java_dev_aigod_godservice_godservice_runscheduledevents",
+      "src_main_java_dev_aigod_godservice_godservice_runservercommand",
+      "src_main_java_dev_aigod_godservice_godservice_savescheduledevents",
+      "src_main_java_dev_aigod_godservice_godservice_say",
+      "src_main_java_dev_aigod_godservice_godservice_scheduleevent",
+      "src_main_java_dev_aigod_godservice_godservice_showtext",
+      "src_main_java_dev_aigod_godservice_godservice_snapshot",
+      "src_main_java_dev_aigod_godservice_godservice_tick",
+      "src_main_java_dev_aigod_godservice_java_jsonobject",
+      "src_main_java_dev_aigod_godservice_java_override",
+      "src_main_java_dev_aigod_questmanager_questmanager_cancel",
+      "src_main_java_dev_aigod_questmanager_questmanager_forcecomplete",
+      "src_main_java_dev_aigod_questmanager_questmanager_record",
+      "src_main_java_dev_aigod_questmanager_questmanager_recordkill",
+      "src_main_java_dev_aigod_questmanager_questmanager_recordmine",
+      "src_test_java_dev_aigod_godservicechatturntest_godservicechatturntest_combinesnearbymessageswithoutcountingspam"
+    ],
+    "1": [
+      "org_junit_jupiter_api_test",
+      "src_main_java_dev_aigod_godservice_godservice_createquest",
+      "src_main_java_dev_aigod_openaigodclient_openaigodclient_missingtooloutputcallid",
+      "src_main_java_dev_aigod_quest",
+      "src_main_java_dev_aigod_quest_quest",
+      "src_main_java_dev_aigod_quest_quest_amount",
+      "src_main_java_dev_aigod_quest_quest_challenge",
+      "src_main_java_dev_aigod_quest_quest_complete",
+      "src_main_java_dev_aigod_quest_quest_deadlinemillis",
+      "src_main_java_dev_aigod_quest_quest_expired",
+      "src_main_java_dev_aigod_quest_quest_forcecomplete",
+      "src_main_java_dev_aigod_quest_quest_objective",
+      "src_main_java_dev_aigod_quest_quest_playerid",
+      "src_main_java_dev_aigod_quest_quest_progress",
+      "src_main_java_dev_aigod_quest_quest_punishmentcommand",
+      "src_main_java_dev_aigod_quest_quest_record",
+      "src_main_java_dev_aigod_quest_quest_recordtotal",
+      "src_main_java_dev_aigod_quest_quest_rewardcommand",
+      "src_main_java_dev_aigod_quest_quest_target",
+      "src_main_java_dev_aigod_questmanager_questmanager_changed",
+      "src_main_java_dev_aigod_questmanager_questmanager_runoperatorcommand",
+      "src_main_java_dev_aigod_questmanager_questmanager_save",
+      "src_main_java_dev_aigod_questmanager_questmanager_status",
+      "src_main_java_dev_aigod_questmanager_questmanager_tick",
+      "src_test_java_dev_aigod_dailystoretest",
+      "src_test_java_dev_aigod_dailystoretest_dailystoretest",
+      "src_test_java_dev_aigod_dailystoretest_dailystoretest_migrateslegacyperplayerdaystate",
+      "src_test_java_dev_aigod_godservicechatturntest",
+      "src_test_java_dev_aigod_godservicechatturntest_godservicechatturntest",
+      "src_test_java_dev_aigod_openaigodclienttest",
+      "src_test_java_dev_aigod_openaigodclienttest_openaigodclienttest",
+      "src_test_java_dev_aigod_openaigodclienttest_openaigodclienttest_findsanorphanedtoolcallinsideanasyncfailure",
+      "src_test_java_dev_aigod_openaigodclienttest_openaigodclienttest_ignoresunrelatedfailures",
+      "src_test_java_dev_aigod_questtest",
+      "src_test_java_dev_aigod_questtest_questtest",
+      "src_test_java_dev_aigod_questtest_questtest_challengesexpirebywallclock",
+      "src_test_java_dev_aigod_questtest_questtest_collectionprogresscountsonlyitemsgainedafterassignment",
+      "src_test_java_dev_aigod_questtest_questtest_completedquestsneverexpireandforcecompletefinishesinstantly",
+      "src_test_java_dev_aigod_questtest_questtest_onlymatchingeventsadvanceaquest",
+      "src_test_java_dev_aigod_questtest_questtest_statobjectivesprogressfromtheirbaseline",
+      "src_test_java_dev_aigod_servergoaltest"
+    ],
+    "2": [
+      "src_main_java_dev_aigod_daycycle",
+      "src_main_java_dev_aigod_daycycle_daycycle",
+      "src_main_java_dev_aigod_daycycle_daycycle_beforesundown",
+      "src_main_java_dev_aigod_daycycle_daycycle_day",
+      "src_main_java_dev_aigod_daycycle_daycycle_daycycle",
+      "src_main_java_dev_aigod_daycycle_daycycle_phase",
+      "src_main_java_dev_aigod_daycycle_daycycle_sundownof",
+      "src_main_java_dev_aigod_daycycle_daycycle_timeofday",
+      "src_test_java_dev_aigod_daycycletest",
+      "src_test_java_dev_aigod_daycycletest_daycycletest",
+      "src_test_java_dev_aigod_daycycletest_daycycletest_dayscountfromzero",
+      "src_test_java_dev_aigod_daycycletest_daycycletest_daytimeendsatsundown",
+      "src_test_java_dev_aigod_daycycletest_daycycletest_phasesfollowthesun",
+      "src_test_java_dev_aigod_daycycletest_daycycletest_sundownfallsonthesameday"
+    ],
+    "3": [
+      "net_minecraft_server_level_serverbossevent",
+      "net_minecraft_server_minecraftserver",
+      "src_main_java_dev_aigod_dailychallengemanager",
+      "src_main_java_dev_aigod_dailychallengemanager_dailychallengemanager",
+      "src_main_java_dev_aigod_dailychallengemanager_dailychallengemanager_announcemilestone",
+      "src_main_java_dev_aigod_dailychallengemanager_dailychallengemanager_command",
+      "src_main_java_dev_aigod_dailychallengemanager_dailychallengemanager_creategoal",
+      "src_main_java_dev_aigod_dailychallengemanager_dailychallengemanager_dailychallengemanager",
+      "src_main_java_dev_aigod_dailychallengemanager_dailychallengemanager_finish",
+      "src_main_java_dev_aigod_dailychallengemanager_dailychallengemanager_polltotals",
+      "src_main_java_dev_aigod_dailychallengemanager_dailychallengemanager_recordevent",
+      "src_main_java_dev_aigod_dailychallengemanager_dailychallengemanager_recordkill",
+      "src_main_java_dev_aigod_dailychallengemanager_dailychallengemanager_recordmine",
+      "src_main_java_dev_aigod_dailychallengemanager_dailychallengemanager_required",
+      "src_main_java_dev_aigod_dailychallengemanager_dailychallengemanager_statusline",
+      "src_main_java_dev_aigod_dailychallengemanager_dailychallengemanager_tick",
+      "src_main_java_dev_aigod_dailychallengemanager_dailychallengemanager_updatebossbar",
+      "src_main_java_dev_aigod_dailystore_dailystore",
+      "src_main_java_dev_aigod_dailystore_dailystore_load",
+      "src_main_java_dev_aigod_dailystore_dailystore_migrateplayerdailies",
+      "src_main_java_dev_aigod_dailystore_dailystore_save",
+      "src_main_java_dev_aigod_dailystore_state",
+      "src_main_java_dev_aigod_dailystore_state_remember",
+      "src_main_java_dev_aigod_godservice_godservice_createdailygoal",
+      "src_main_java_dev_aigod_godservice_godservice_goalcompleted",
+      "src_main_java_dev_aigod_godservice_godservice_goalfailed",
+      "src_main_java_dev_aigod_quest_objective",
+      "src_main_java_dev_aigod_quest_objective_collect",
+      "src_main_java_dev_aigod_quest_objective_kill",
+      "src_main_java_dev_aigod_quest_objective_mine",
+      "src_main_java_dev_aigod_quest_objective_stat",
+      "src_main_java_dev_aigod_quest_quest_quest",
+      "src_main_java_dev_aigod_questmanager_questmanager_prettytarget",
+      "src_main_java_dev_aigod_servergoal",
+      "src_main_java_dev_aigod_servergoal_servergoal",
+      "src_main_java_dev_aigod_servergoal_servergoal_amount",
+      "src_main_java_dev_aigod_servergoal_servergoal_challenge",
+      "src_main_java_dev_aigod_servergoal_servergoal_complete",
+      "src_main_java_dev_aigod_servergoal_servergoal_day",
+      "src_main_java_dev_aigod_servergoal_servergoal_deadlinedaytime",
+      "src_main_java_dev_aigod_servergoal_servergoal_expired",
+      "src_main_java_dev_aigod_servergoal_servergoal_objective",
+      "src_main_java_dev_aigod_servergoal_servergoal_progress",
+      "src_main_java_dev_aigod_servergoal_servergoal_punishmentcommand",
+      "src_main_java_dev_aigod_servergoal_servergoal_recordevent",
+      "src_main_java_dev_aigod_servergoal_servergoal_rewardcommand",
+      "src_main_java_dev_aigod_servergoal_servergoal_servergoal",
+      "src_main_java_dev_aigod_servergoal_servergoal_target",
+      "src_main_java_dev_aigod_servergoal_servergoal_updatetotal",
+      "src_test_java_dev_aigod_dailystoretest_dailystoretest_roundtripsthesharedgoalstate",
+      "src_test_java_dev_aigod_servergoaltest_servergoaltest",
+      "src_test_java_dev_aigod_servergoaltest_servergoaltest_collectionsumseachplayersgainsabovetheirownbaseline",
+      "src_test_java_dev_aigod_servergoaltest_servergoaltest_expiryonlybitesincompletegoals",
+      "src_test_java_dev_aigod_servergoaltest_servergoaltest_goal",
+      "src_test_java_dev_aigod_servergoaltest_servergoaltest_killsfromanyplayerpoolintoonetotal"
+    ],
+    "4": [
+      "com_google_gson_gson",
+      "net_fabricmc_api_modinitializer",
+      "org_slf4j_logger",
+      "src_main_java_dev_aigod_adminserver_adminserver_adminserver",
+      "src_main_java_dev_aigod_aigodmod",
+      "src_main_java_dev_aigod_aigodmod_aigodmod",
+      "src_main_java_dev_aigod_aigodmod_aigodmod_positiveenvironmentint",
+      "src_main_java_dev_aigod_conversationstore",
+      "src_main_java_dev_aigod_conversationstore_conversationstore",
+      "src_main_java_dev_aigod_conversationstore_conversationstore_conversationstore",
+      "src_main_java_dev_aigod_conversationstore_conversationstore_load",
+      "src_main_java_dev_aigod_conversationstore_conversationstore_save",
+      "src_main_java_dev_aigod_dailystore",
+      "src_main_java_dev_aigod_dailystore_dailystore_dailystore",
+      "src_main_java_dev_aigod_godservice_godservice_godservice",
+      "src_main_java_dev_aigod_questmanager_questmanager_questmanager",
+      "src_main_java_dev_aigod_queststore",
+      "src_main_java_dev_aigod_queststore_queststore",
+      "src_main_java_dev_aigod_queststore_queststore_load",
+      "src_main_java_dev_aigod_queststore_queststore_queststore",
+      "src_main_java_dev_aigod_queststore_queststore_save",
+      "src_main_java_dev_aigod_scheduledevent",
+      "src_main_java_dev_aigod_scheduledevent_scheduledevent",
+      "src_main_java_dev_aigod_scheduledevent_scheduledevent_next",
+      "src_main_java_dev_aigod_schedulestore",
+      "src_main_java_dev_aigod_schedulestore_schedulestore",
+      "src_main_java_dev_aigod_schedulestore_schedulestore_load",
+      "src_main_java_dev_aigod_schedulestore_schedulestore_save",
+      "src_main_java_dev_aigod_schedulestore_schedulestore_schedulestore"
+    ],
+    "5": [
+      "com_google_gson_jsonelement",
+      "com_sun_net_httpserver_httpserver",
+      "java_net_http_httpclient",
+      "java_net_http_httpresponse",
+      "java_net_uri",
+      "java_util_regex_pattern",
+      "src_main_java_dev_aigod_adminserver",
+      "src_main_java_dev_aigod_openaigodclient",
+      "src_main_java_dev_aigod_openaigodclient_godapiexception",
+      "src_main_java_dev_aigod_openaigodclient_godapiexception_godapiexception",
+      "src_main_java_dev_aigod_openaigodclient_java_jsonobject",
+      "src_main_java_dev_aigod_openaigodclient_java_override",
+      "src_main_java_dev_aigod_openaigodclient_openaigodclient",
+      "src_main_java_dev_aigod_openaigodclient_openaigodclient_close",
+      "src_main_java_dev_aigod_openaigodclient_openaigodclient_continuewithtools",
+      "src_main_java_dev_aigod_openaigodclient_openaigodclient_createconversation",
+      "src_main_java_dev_aigod_openaigodclient_openaigodclient_openaigodclient",
+      "src_main_java_dev_aigod_openaigodclient_openaigodclient_parseresponse",
+      "src_main_java_dev_aigod_openaigodclient_openaigodclient_respond",
+      "src_main_java_dev_aigod_openaigodclient_openaigodclient_send",
+      "src_main_java_dev_aigod_openaigodclient_openaigodclient_sendrecovering",
+      "src_main_java_dev_aigod_openaigodclient_openaigodclient_string",
+      "src_main_java_dev_aigod_openaigodclient_responseturn",
+      "src_main_java_dev_aigod_openaigodclient_toolcall",
+      "src_main_java_dev_aigod_openaigodclient_toolresult"
+    ],
+    "6": [
+      "com_google_gson_jsonobject",
+      "net_minecraft_resources_identifier",
+      "net_minecraft_stats_stat",
+      "net_minecraft_stats_stattype",
+      "src_main_java_dev_aigod_godservice_godservice_quests",
+      "src_main_java_dev_aigod_questmanager",
+      "src_main_java_dev_aigod_questmanager_questmanager",
+      "src_main_java_dev_aigod_questmanager_questmanager_command",
+      "src_main_java_dev_aigod_questmanager_questmanager_count",
+      "src_main_java_dev_aigod_questmanager_questmanager_create",
+      "src_main_java_dev_aigod_questmanager_questmanager_normalizedid",
+      "src_main_java_dev_aigod_questmanager_questmanager_positiveint",
+      "src_main_java_dev_aigod_questmanager_questmanager_requiredstring",
+      "src_main_java_dev_aigod_questmanager_questmanager_resolvestat",
+      "src_main_java_dev_aigod_questmanager_questmanager_statof",
+      "src_main_java_dev_aigod_questmanager_questmanager_validatetarget"
+    ],
+    "7": [
+      "com_sun_net_httpserver_httpexchange",
+      "src_main_java_dev_aigod_adminserver_adminserver",
+      "src_main_java_dev_aigod_adminserver_adminserver_activity",
+      "src_main_java_dev_aigod_adminserver_adminserver_asset",
+      "src_main_java_dev_aigod_adminserver_adminserver_authorized",
+      "src_main_java_dev_aigod_adminserver_adminserver_close",
+      "src_main_java_dev_aigod_adminserver_adminserver_empty",
+      "src_main_java_dev_aigod_adminserver_adminserver_encode",
+      "src_main_java_dev_aigod_adminserver_adminserver_error",
+      "src_main_java_dev_aigod_adminserver_adminserver_get",
+      "src_main_java_dev_aigod_adminserver_adminserver_send",
+      "src_main_java_dev_aigod_adminserver_adminserver_summary",
+      "src_main_java_dev_aigod_adminserver_adminserver_withlivestate",
+      "src_main_java_dev_aigod_adminserver_java_jsonobject",
+      "src_main_java_dev_aigod_adminserver_java_override"
+    ],
+    "8": [
+      "src_main_resources_admin_app",
+      "src_main_resources_admin_app_connection",
+      "src_main_resources_admin_app_emptyelement",
+      "src_main_resources_admin_app_groupturns",
+      "src_main_resources_admin_app_inputdetails",
+      "src_main_resources_admin_app_refresh",
+      "src_main_resources_admin_app_render",
+      "src_main_resources_admin_app_renderstate",
+      "src_main_resources_admin_app_speakerfilter",
+      "src_main_resources_admin_app_stepfrom",
+      "src_main_resources_admin_app_textcontent",
+      "src_main_resources_admin_app_turns",
+      "src_main_resources_admin_app_turnselement",
+      "src_main_resources_admin_app_updatefilters"
+    ],
+    "9": [
+      "codex_skills_graphify_skill",
+      "codex_skills_graphify_skill_for_graphify_add_and_watch",
+      "codex_skills_graphify_skill_for_graphify_query",
+      "codex_skills_graphify_skill_for_the_commit_hook_and_native_claude_md_integration",
+      "codex_skills_graphify_skill_for_update_and_cluster_only",
+      "codex_skills_graphify_skill_graphify",
+      "codex_skills_graphify_skill_honesty_rules",
+      "codex_skills_graphify_skill_interpreter_guard_for_subcommands",
+      "codex_skills_graphify_skill_part_a_structural_extraction_for_code_files",
+      "codex_skills_graphify_skill_part_b_semantic_extraction_parallel_subagents",
+      "codex_skills_graphify_skill_part_c_merge_ast_semantic_into_final_extraction",
+      "codex_skills_graphify_skill_step_0_github_repos_and_multi_path_merge_only_if_a_url_or_several_paths",
+      "codex_skills_graphify_skill_step_1_ensure_graphify_is_installed",
+      "codex_skills_graphify_skill_step_2_5_video_and_audio_only_if_video_files_detected",
+      "codex_skills_graphify_skill_step_2_detect_files",
+      "codex_skills_graphify_skill_step_3_extract_entities_and_relationships",
+      "codex_skills_graphify_skill_step_4_5_graph_health_check_read_only_integrity_gate",
+      "codex_skills_graphify_skill_step_4_build_graph_cluster_analyze_generate_outputs",
+      "codex_skills_graphify_skill_step_5_label_communities",
+      "codex_skills_graphify_skill_step_6_generate_obsidian_vault_opt_in_html",
+      "codex_skills_graphify_skill_step_9_save_manifest_update_cost_tracker_clean_up_and_report",
+      "codex_skills_graphify_skill_steps_6b_8_wiki_neo4j_falkordb_svg_graphml_mcp_benchmark_only_on_their_flags",
+      "codex_skills_graphify_skill_usage",
+      "codex_skills_graphify_skill_what_graphify_is_for",
+      "codex_skills_graphify_skill_what_you_must_do_when_invoked"
+    ],
+    "10": [
+      "gradlew",
+      "gradlew__entry",
+      "gradlew_die",
+      "gradlew_warn"
+    ],
+    "11": [
+      "deploy_minecraft_deploy",
+      "deploy_minecraft_deploy__entry",
+      "deploy_minecraft_deploy_aws_default_region"
+    ],
+    "12": [
+      "deploy_user_data",
+      "deploy_user_data_aws_default_region",
+      "deploy_user_data_sh__entry"
+    ],
+    "13": [
+      "build"
+    ],
+    "14": [
+      "server_icon"
+    ],
+    "15": [
+      "settings"
+    ],
+    "16": [
+      "codex_skills_graphify_references_exports",
+      "codex_skills_graphify_references_exports_graphify_reference_extra_exports_and_benchmark",
+      "codex_skills_graphify_references_exports_step_6b_wiki_only_if_wiki_flag",
+      "codex_skills_graphify_references_exports_step_7_neo4j_export_only_if_neo4j_or_neo4j_push_flag",
+      "codex_skills_graphify_references_exports_step_7a_falkordb_export_only_if_falkordb_or_falkordb_push_flag",
+      "codex_skills_graphify_references_exports_step_7b_svg_export_only_if_svg_flag",
+      "codex_skills_graphify_references_exports_step_7c_graphml_export_only_if_graphml_flag",
+      "codex_skills_graphify_references_exports_step_7d_mcp_server_only_if_mcp_flag",
+      "codex_skills_graphify_references_exports_step_8_token_reduction_benchmark_only_if_total_words_5000"
+    ],
+    "17": [
+      "readme",
+      "readme_admin",
+      "readme_memory_and_saved_state",
+      "readme_minecraft_with_chatgpt",
+      "readme_operator_access",
+      "readme_production",
+      "readme_run_locally",
+      "readme_the_game"
+    ],
+    "18": [
+      "codex_skills_graphify_references_query",
+      "codex_skills_graphify_references_query_for_graphify_explain",
+      "codex_skills_graphify_references_query_for_graphify_path",
+      "codex_skills_graphify_references_query_graphify_reference_query_path_explain",
+      "codex_skills_graphify_references_query_step_0_constrained_query_expansion_required_before_traversal",
+      "codex_skills_graphify_references_query_step_1_traversal"
+    ],
+    "19": [
+      "codex_skills_graphify_references_add_watch",
+      "codex_skills_graphify_references_add_watch_for_graphify_add",
+      "codex_skills_graphify_references_add_watch_for_watch",
+      "codex_skills_graphify_references_add_watch_graphify_reference_add_a_url_and_watch_a_folder"
+    ],
+    "20": [
+      "codex_skills_graphify_references_hooks",
+      "codex_skills_graphify_references_hooks_for_git_commit_hook",
+      "codex_skills_graphify_references_hooks_for_native_claude_md_integration",
+      "codex_skills_graphify_references_hooks_graphify_reference_commit_hook_and_native_claude_md_integration"
+    ],
+    "21": [
+      "codex_skills_graphify_references_update",
+      "codex_skills_graphify_references_update_for_cluster_only",
+      "codex_skills_graphify_references_update_for_update_incremental_re_extraction",
+      "codex_skills_graphify_references_update_graphify_reference_incremental_update_and_cluster_only"
+    ],
+    "22": [
+      "agents_skills_ponytail_skill",
+      "agents_skills_ponytail_skill_ladder",
+      "agents_skills_ponytail_skill_ponytail"
+    ],
+    "23": [
+      "codex_skills_graphify_references_github_and_merge",
+      "codex_skills_graphify_references_github_and_merge_graphify_reference_github_clone_and_cross_repo_merge",
+      "codex_skills_graphify_references_github_and_merge_step_0_clone_github_repo_s_only_if_a_github_url_was_given"
+    ],
+    "24": [
+      "codex_skills_graphify_references_transcribe",
+      "codex_skills_graphify_references_transcribe_graphify_reference_transcribe_video_and_audio",
+      "codex_skills_graphify_references_transcribe_step_2_5_transcribe_video_audio_files_only_if_video_files_detected"
+    ],
+    "25": [
+      "agents",
+      "agents_engineering",
+      "agents_graphify"
+    ],
+    "26": [
+      "codex_skills_graphify_references_extraction_spec",
+      "codex_skills_graphify_references_extraction_spec_graphify_reference_extraction_subagent_prompt_compact"
+    ],
+    "27": [
+      "src_main_java_dev_aigod_minecraftchattext",
+      "src_main_java_dev_aigod_minecraftchattext_minecraftchattext",
+      "src_main_java_dev_aigod_minecraftchattext_minecraftchattext_frommodel",
+      "src_main_java_dev_aigod_minecraftchattext_minecraftchattext_minecraftchattext",
+      "src_test_java_dev_aigod_minecraftchattexttest",
+      "src_test_java_dev_aigod_minecraftchattexttest_minecraftchattexttest",
+      "src_test_java_dev_aigod_minecraftchattexttest_minecraftchattexttest_removesmarkdownthatminecraftwouldshowliterally"
+    ]
+  },
+  "cohesion": {
+    "0": 0.09013914095583787,
+    "1": 0.10121951219512196,
+    "2": 0.2087912087912088,
+    "3": 0.10033670033670034,
+    "4": 0.11576354679802955,
+    "5": 0.17,
+    "6": 0.2833333333333333,
+    "7": 0.29523809523809524,
+    "8": 0.23076923076923078,
+    "9": 0.08,
+    "10": 0.8333333333333334,
+    "11": 0.6666666666666666,
+    "12": 0.6666666666666666,
+    "13": 1.0,
+    "14": 1.0,
+    "15": 1.0,
+    "16": 0.2222222222222222,
+    "17": 0.25,
+    "18": 0.3333333333333333,
+    "19": 0.5,
+    "20": 0.5,
+    "21": 0.5,
+    "22": 0.6666666666666666,
+    "23": 0.6666666666666666,
+    "24": 0.6666666666666666,
+    "25": 0.6666666666666666,
+    "26": 1.0,
+    "27": 0.2857142857142857
+  },
+  "gods": [
+    {
+      "id": "src_main_java_dev_aigod_godservice_godservice",
+      "label": "GodService",
+      "degree": 55
+    },
+    {
+      "id": "src_main_java_dev_aigod_questmanager_questmanager",
+      "label": "QuestManager",
+      "degree": 28
+    },
+    {
+      "id": "src_main_java_dev_aigod_servergoal_servergoal",
+      "label": "ServerGoal",
+      "degree": 25
+    },
+    {
+      "id": "src_main_java_dev_aigod_quest_quest",
+      "label": "Quest",
+      "degree": 23
+    },
+    {
+      "id": "src_main_java_dev_aigod_openaigodclient_openaigodclient",
+      "label": "OpenAiGodClient",
+      "degree": 21
+    },
+    {
+      "id": "src_main_java_dev_aigod_dailychallengemanager_dailychallengemanager",
+      "label": "DailyChallengeManager",
+      "degree": 20
+    },
+    {
+      "id": "src_main_java_dev_aigod_adminserver_adminserver",
+      "label": "AdminServer",
+      "degree": 19
+    },
+    {
+      "id": "src_main_java_dev_aigod_quest_objective",
+      "label": "Objective",
+      "degree": 16
+    },
+    {
+      "id": "codex_skills_graphify_skill_what_you_must_do_when_invoked",
+      "label": "What You Must Do When Invoked",
+      "degree": 12
+    },
+    {
+      "id": "src_main_java_dev_aigod_godservice_chatturn",
+      "label": "ChatTurn",
+      "degree": 11
+    }
+  ],
+  "surprises": [
+    {
+      "source": "AiGodMod",
+      "target": "GodService",
+      "source_files": [
+        "src/main/java/dev/aigod/AiGodMod.java",
+        "src/main/java/dev/aigod/GodService.java"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "DailyChallengeManager",
+      "target": "GodService",
+      "source_files": [
+        "src/main/java/dev/aigod/DailyChallengeManager.java",
+        "src/main/java/dev/aigod/GodService.java"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "GodService",
+      "target": "ConversationStore",
+      "source_files": [
+        "src/main/java/dev/aigod/GodService.java",
+        "src/main/java/dev/aigod/ConversationStore.java"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "GodService",
+      "target": "OpenAiGodClient",
+      "source_files": [
+        "src/main/java/dev/aigod/GodService.java",
+        "src/main/java/dev/aigod/OpenAiGodClient.java"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "GodService",
+      "target": "QuestManager",
+      "source_files": [
+        "src/main/java/dev/aigod/GodService.java",
+        "src/main/java/dev/aigod/QuestManager.java"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "bridges separate communities"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `GodService` connect `Chat and Messaging System` to `Quest Creation and Management`, `Daily Challenges and Goals`, `Mod Initialization and Config`, `API Client and HTTP Handling`, `Quest Tracking and Stats`?",
+      "why": "High betweenness centrality (0.163) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `OpenAiGodClient` connect `API Client and HTTP Handling` to `Chat and Messaging System`, `Quest Creation and Management`, `Mod Initialization and Config`, `Quest Tracking and Stats`?",
+      "why": "High betweenness centrality (0.061) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `QuestManager` connect `Quest Tracking and Stats` to `Chat and Messaging System`, `Quest Creation and Management`, `Daily Challenges and Goals`, `Mod Initialization and Config`?",
+      "why": "High betweenness centrality (0.053) - this node is a cross-community bridge."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `AWS_DEFAULT_REGION`, `user-data.sh script`, `Step 6b - Wiki (only if --wiki flag)` to the rest of the system?",
+      "why": "62 weakly-connected nodes found - possible documentation gaps or missing edges."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Chat and Messaging System` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.09013914095583787 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Quest Creation and Management` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.10121951219512196 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Daily Challenges and Goals` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.10033670033670034 - nodes in this community are weakly interconnected."
+    }
+  ]
+}

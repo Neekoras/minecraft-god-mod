@@ -3,6 +3,9 @@ package dev.aigod;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -11,6 +14,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /** Persists the server-wide daily goal, the day it was issued, and recent goal texts. */
 final class DailyStore {
@@ -40,12 +44,34 @@ final class DailyStore {
     State load() {
         if (!Files.exists(path)) return new State();
         try {
-            State state = GSON.fromJson(Files.readString(path), State.class);
-            return state == null ? new State() : state;
-        } catch (IOException | JsonParseException exception) {
+            JsonObject saved = JsonParser.parseString(Files.readString(path)).getAsJsonObject();
+            if (saved.has("lastIssuedDay") || saved.has("activeGoal") || saved.has("pastGoals")) {
+                State state = GSON.fromJson(saved, State.class);
+                if (state == null) return new State();
+                if (state.pastGoals == null) state.pastGoals = new ArrayList<>();
+                return state;
+            }
+            return migratePlayerDailies(saved);
+        } catch (IOException | JsonParseException | IllegalStateException exception) {
             logger.error("Could not load AI God daily state from {}", path, exception);
             return new State();
         }
+    }
+
+    private static State migratePlayerDailies(JsonObject saved) {
+        State state = new State();
+        for (Map.Entry<String, JsonElement> entry : saved.entrySet()) {
+            JsonElement value = entry.getValue();
+            long day = value.isJsonPrimitive() ? value.getAsLong()
+                    : value.getAsJsonObject().get("lastIssuedDay").getAsLong();
+            state.lastIssuedDay = Math.max(state.lastIssuedDay, day);
+            if (!value.isJsonObject() || !value.getAsJsonObject().has("pastChallenges")) continue;
+            for (JsonElement challenge : value.getAsJsonObject().getAsJsonArray("pastChallenges")) {
+                state.pastGoals.add(challenge.getAsString());
+            }
+        }
+        while (state.pastGoals.size() > HISTORY_LIMIT) state.pastGoals.remove(0);
+        return state;
     }
 
     void save(State state) {

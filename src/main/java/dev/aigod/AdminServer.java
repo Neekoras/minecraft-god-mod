@@ -1,7 +1,6 @@
 package dev.aigod;
 
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.sun.net.httpserver.HttpExchange;
@@ -13,6 +12,7 @@ import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -29,7 +29,6 @@ import java.util.function.Supplier;
 final class AdminServer implements AutoCloseable {
     private static final String CONVERSATIONS_URL = "https://api.openai.com/v1/conversations/";
     private static final int PAGE_SIZE = 100;
-    private static final int MAX_PAGES = 5;
 
     private final HttpServer server;
     private final HttpClient http;
@@ -58,65 +57,81 @@ final class AdminServer implements AutoCloseable {
                 .executor(executor)
                 .build();
         server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 0);
-        server.createContext("/api/activity", this::activity);
+        server.createContext("/api/state", this::state);
+        server.createContext("/api/turns", this::turns);
         server.createContext("/", this::asset);
         server.setExecutor(executor);
         server.start();
         logger.info("AI God admin listening on http://127.0.0.1:{}", port);
     }
 
-    private void activity(HttpExchange exchange) throws IOException {
+    private void state(HttpExchange exchange) throws IOException {
         if (!authorized(exchange)) return;
         if (!"GET".equals(exchange.getRequestMethod())) {
             send(exchange, 405, "text/plain; charset=utf-8", "method not allowed");
             return;
         }
+        JsonObject payload = new JsonObject();
+        payload.addProperty("model", model);
+        payload.add("state", JsonParser.parseString(stateSupplier.get()));
+        payload.addProperty("refreshed_at", Instant.now().toString());
+        send(exchange, 200, "application/json; charset=utf-8", payload.toString());
+    }
+
+    private void turns(HttpExchange exchange) throws IOException {
+        if (!authorized(exchange)) return;
+        if (!"GET".equals(exchange.getRequestMethod())) {
+            send(exchange, 405, "text/plain; charset=utf-8", "method not allowed");
+            return;
+        }
+        String after = queryParameter(exchange.getRequestURI(), "after");
         try {
-            send(exchange, 200, "application/json; charset=utf-8", activity());
+            send(exchange, 200, "application/json; charset=utf-8",
+                    conversation(after));
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             send(exchange, 503, "application/json; charset=utf-8", error("interrupted"));
         } catch (RuntimeException exception) {
             logger.warn("Could not refresh AI God admin activity", exception);
-            String body = cachedBody != null ? cachedBody : error(exception.getMessage());
-            send(exchange, cachedBody != null ? 200 : 502, "application/json; charset=utf-8", body);
+            boolean canUseCache = after == null && cachedBody != null;
+            send(exchange, canUseCache ? 200 : 502, "application/json; charset=utf-8",
+                    canUseCache ? cachedBody : error(exception.getMessage()));
         }
     }
 
-    private synchronized String activity() throws InterruptedException {
+    private synchronized String conversation(String after) throws InterruptedException {
         String conversationId = conversationStore.load();
         if (conversationId == null) return empty();
         String baseUrl = CONVERSATIONS_URL + conversationId;
-        JsonObject firstPage = get(baseUrl + "/items?limit=" + PAGE_SIZE + "&order=desc");
-        String firstItemId = firstPage.has("first_id") && !firstPage.get("first_id").isJsonNull()
-                ? firstPage.get("first_id").getAsString() : null;
-        if (conversationId.equals(cachedConversationId)
+        String pageUrl = baseUrl + "/items?limit=" + PAGE_SIZE + "&order=desc"
+                + (after == null ? "" : "&after=" + encode(after));
+        JsonObject page = get(pageUrl);
+        String firstItemId = page.has("first_id") && !page.get("first_id").isJsonNull()
+                ? page.get("first_id").getAsString() : null;
+        if (after == null && conversationId.equals(cachedConversationId)
                 && java.util.Objects.equals(firstItemId, cachedFirstItemId)
-                && cachedBody != null) return withLiveState(cachedBody);
+                && cachedBody != null) return cachedBody;
 
         JsonObject conversation = get(baseUrl);
-        JsonArray items = new JsonArray();
-        String after = null;
-        boolean hasMore = false;
-        for (int pageNumber = 0; pageNumber < MAX_PAGES; pageNumber++) {
-            JsonObject page = pageNumber == 0 ? firstPage : get(baseUrl + "/items?limit=" + PAGE_SIZE
-                    + "&order=desc&after=" + encode(after));
-            JsonArray data = page.getAsJsonArray("data");
-            if (data != null) for (JsonElement item : data) items.add(item);
-            hasMore = page.has("has_more") && page.get("has_more").getAsBoolean();
-            if (!hasMore || !page.has("last_id") || page.get("last_id").isJsonNull()) break;
-            after = page.get("last_id").getAsString();
-        }
+        JsonArray items = page.getAsJsonArray("data");
+        if (items == null) items = new JsonArray();
+        boolean hasMore = page.has("has_more") && page.get("has_more").getAsBoolean();
 
         JsonObject payload = new JsonObject();
         payload.add("conversation", summary(conversation));
         payload.add("items", items);
         payload.addProperty("has_more", hasMore);
+        if (hasMore && page.has("last_id") && !page.get("last_id").isJsonNull()) {
+            payload.add("next_after", page.get("last_id"));
+        }
         payload.addProperty("refreshed_at", Instant.now().toString());
-        cachedConversationId = conversationId;
-        cachedFirstItemId = firstItemId;
-        cachedBody = payload.toString();
-        return withLiveState(cachedBody);
+        String body = payload.toString();
+        if (after == null) {
+            cachedConversationId = conversationId;
+            cachedFirstItemId = firstItemId;
+            cachedBody = body;
+        }
+        return body;
     }
 
     private JsonObject get(String url) throws InterruptedException {
@@ -178,14 +193,7 @@ final class AdminServer implements AutoCloseable {
     }
 
     private String empty() {
-        return withLiveState("{\"conversation\":null,\"items\":[],\"has_more\":false}");
-    }
-
-    private String withLiveState(String body) {
-        JsonObject payload = JsonParser.parseString(body).getAsJsonObject();
-        payload.add("state", JsonParser.parseString(stateSupplier.get()));
-        payload.addProperty("refreshed_at", Instant.now().toString());
-        return payload.toString();
+        return "{\"conversation\":null,\"items\":[],\"has_more\":false}";
     }
 
     private static String error(String message) {
@@ -196,6 +204,18 @@ final class AdminServer implements AutoCloseable {
 
     private static String encode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private static String queryParameter(URI uri, String name) {
+        String query = uri.getRawQuery();
+        if (query == null) return null;
+        for (String part : query.split("&")) {
+            String[] pair = part.split("=", 2);
+            if (URLDecoder.decode(pair[0], StandardCharsets.UTF_8).equals(name)) {
+                return pair.length == 2 ? URLDecoder.decode(pair[1], StandardCharsets.UTF_8) : "";
+            }
+        }
+        return null;
     }
 
     private boolean authorized(HttpExchange exchange) throws IOException {

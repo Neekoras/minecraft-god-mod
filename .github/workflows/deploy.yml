@@ -34,20 +34,20 @@ jobs:
           distribution: temurin
           java-version: "25"
       - uses: gradle/actions/setup-gradle@v6
-      - run: ./gradlew test build
-      - uses: actions/upload-artifact@v7
-        with:
-          name: ai-god-${{ github.sha }}
-          path: |
-            build/libs/ai-god-0.1.0.jar
-            server-icon.png
-            deploy/minecraft.service
-            deploy/minecraft-deploy
+      - run: ./gradlew build
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
+      - name: Skip superseded commit
+        run: |
+          latest=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [[ "$latest" != "$GITHUB_SHA" ]]; then
+            echo "SUPERSEDED=true" >> "$GITHUB_ENV"
+            echo "A newer main commit exists; skipping this restart."
+          fi
       - name: Upload server JAR
+        if: env.SUPERSEDED != 'true'
         run: |
           aws s3 cp build/libs/ai-god-0.1.0.jar \
             "s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}.jar"
@@ -61,7 +61,10 @@ jobs:
             "s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}-minecraft.service"
           aws s3 cp deploy/minecraft-deploy \
             "s3://${{ vars.AWS_ARTIFACT_BUCKET }}/releases/${GITHUB_SHA}-minecraft-deploy"
+          aws s3 cp deploy/minecraft-deploy \
+            "s3://${{ vars.AWS_ARTIFACT_BUCKET }}/latest/minecraft-deploy"
       - name: Deploy and restart Minecraft
+        if: env.SUPERSEDED != 'true'
         run: |
           command_id=$(aws ssm send-command \
             --instance-ids "${{ vars.EC2_INSTANCE_ID }}" \

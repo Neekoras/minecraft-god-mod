@@ -1,68 +1,125 @@
 :root {
   color-scheme: dark;
-  --ink: #f1eee5;
-  --night: #090d16;
-  --sky: #101a2b;
-  --moon: #e8e2cf;
-  --hill-far: #1d2b31;
-  --hill: #15221f;
-  --leaf: #18251d;
-  --soil: #251d1c;
+  --ink: #f4f2eb;
+  --muted: #a09f99;
+  --black: #080808;
+  --panel: #10100d;
+  --moon: #eee6cb;
+  --grass: #759b55;
+  --grass-light: #9abc72;
+  --grass-dark: #31472c;
+  --dirt: #35271f;
+  --stone: #28343d;
+  --water: #4f8090;
+  --gold: #d7ad42;
 }
 
 * { box-sizing: border-box; }
 
-html,
-body {
+html, body {
   min-height: 100%;
   margin: 0;
 }
 
 body {
-  overflow: hidden;
+  overflow-x: hidden;
   color: var(--ink);
-  background:
-    radial-gradient(circle at 76% 18%, rgba(101, 87, 150, 0.12), transparent 28%),
-    linear-gradient(180deg, var(--night) 0 47%, var(--sky) 100%);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--black);
+  font-family: Geist, Arial, sans-serif;
 }
 
 main {
   position: relative;
   z-index: 3;
-  display: grid;
-  width: min(1180px, calc(100% - 48px));
-  min-height: 100vh;
+  width: min(1240px, calc(100% - 64px));
   margin: 0 auto;
-  place-items: center start;
-  padding-bottom: 13vh;
 }
 
-.hero { width: min(790px, 100%); }
+.page {
+  position: relative;
+  display: grid;
+  min-height: 100svh;
+  align-items: center;
+  padding: 10vh 0;
+}
+
+.hero-page { padding-bottom: 18vh; }
+
+.mark {
+  position: absolute;
+  top: 34px;
+  left: 0;
+  image-rendering: pixelated;
+  filter: drop-shadow(5px 5px 0 #3a2d09);
+}
+
+.hero { width: min(920px, 78vw); }
 
 h1 {
   margin: 0;
-  font-size: clamp(58px, 7.7vw, 110px);
-  font-weight: 700;
-  letter-spacing: -0.065em;
-  line-height: 0.92;
-  text-shadow: 0 10px 45px rgba(0, 0, 0, 0.34);
+  font-size: clamp(70px, 9vw, 138px);
+  font-weight: 650;
+  letter-spacing: -.078em;
+  line-height: .84;
 }
 
-.hero .coming-soon {
-  display: inline-block;
-  margin: 42px 0 0 8px;
-  border: 1px solid rgba(241, 238, 229, 0.48);
-  padding: 14px 18px;
-  color: var(--ink);
-  background: rgba(241, 238, 229, 0.06);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+h1 span { color: var(--grass-light); }
+
+.feature {
+  grid-template-columns: minmax(300px, .8fr) minmax(440px, 1.2fr);
+  gap: clamp(48px, 9vw, 140px);
+  border-top: 1px solid #24231d;
 }
 
-.world {
+.feature-copy > span {
+  color: var(--water);
+  font: 12px "Geist Mono", monospace;
+}
+
+h2 {
+  max-width: 650px;
+  margin: 18px 0 0;
+  font-size: clamp(52px, 6vw, 88px);
+  font-weight: 620;
+  letter-spacing: -.065em;
+  line-height: .92;
+}
+
+.feature-copy p {
+  max-width: 470px;
+  margin: 28px 0 0;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.game-chat, .goal-demo, .players-demo {
+  border: 1px solid #30393a;
+  background: rgba(12, 12, 10, .92);
+  box-shadow: 12px 12px 0 #17211b;
+}
+
+.game-chat { padding: 26px 28px; font: 15px/1.65 "Geist Mono", monospace; }
+.game-chat p { margin: 0; }
+.game-chat p + p { margin-top: 18px; }
+.game-chat b { color: var(--ink); font-weight: 500; }
+.game-chat .god b { color: var(--gold); }
+
+.goal-demo { display: grid; grid-template-columns: 1fr auto; gap: 24px; padding: 28px; }
+.goal-demo div > span { display: block; color: var(--muted); font-size: 12px; }
+.goal-demo strong { display: block; margin-top: 10px; font-size: 20px; font-weight: 550; }
+.goal-demo > b { font: 20px "Geist Mono", monospace; }
+.goal-demo > i { grid-column: 1 / -1; height: 7px; background: #263126; }
+.goal-demo > i em { display: block; width: 56.25%; height: 100%; background: var(--grass); }
+
+.players-demo > div { display: grid; grid-template-columns: 42px 1fr auto; gap: 14px; align-items: center; padding: 18px 20px; border-bottom: 1px solid #29271f; }
+.players-demo > div:last-child { border-bottom: 0; }
+.players-demo img { width: 42px; height: 42px; image-rendering: pixelated; }
+.players-demo span { font-size: 14px; font-weight: 550; }
+.players-demo b { color: var(--muted); font: 12px "Geist Mono", monospace; font-weight: 400; }
+.players-demo .god-row span, .players-demo .god-row b { color: var(--gold); }
+
+.scene {
   position: fixed;
   z-index: 1;
   inset: 0;
@@ -70,131 +127,114 @@ h1 {
   pointer-events: none;
 }
 
-.world::before {
+.scene::before {
   position: absolute;
   inset: 0;
-  content: "";
-  opacity: 0.68;
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.82) 0 1px, transparent 1.5px),
-    radial-gradient(circle, rgba(151, 169, 201, 0.5) 0 1px, transparent 1.5px),
-    radial-gradient(circle, rgba(255, 255, 255, 0.35) 0 1px, transparent 1.5px);
-  background-position: 21px 17px, 73px 41px, 8px 92px;
-  background-size: 139px 127px, 181px 163px, 223px 197px;
-  mask-image: linear-gradient(to bottom, #000 0 58%, transparent 82%);
+    radial-gradient(circle, rgba(255, 255, 255, .4) 0 1px, transparent 1.5px),
+    radial-gradient(circle, rgba(79, 128, 144, .38) 0 1px, transparent 1.5px);
+  background-position: 23px 19px, 91px 67px;
+  background-size: 197px 173px, 271px 239px;
+  content: "";
+  mask-image: linear-gradient(to bottom, #000 0 50%, transparent 82%);
 }
 
 .moon {
   position: absolute;
   top: 13vh;
-  right: 10vw;
-  width: 74px;
-  height: 74px;
+  right: 9vw;
+  width: clamp(120px, 15vw, 220px);
+  aspect-ratio: 1;
   background: var(--moon);
-  box-shadow: 12px 12px 0 rgba(232, 226, 207, 0.08), 0 0 42px rgba(232, 226, 207, 0.12);
+  box-shadow: 18px 18px 0 rgba(238, 230, 203, .07);
 }
 
-.moon::before,
-.moon::after {
+.moon::before, .moon::after {
   position: absolute;
+  background: rgba(92, 98, 91, .16);
   content: "";
-  background: rgba(9, 13, 22, 0.12);
 }
 
-.moon::before { width: 18px; height: 13px; left: 12px; top: 17px; }
-.moon::after { width: 11px; height: 9px; right: 13px; bottom: 14px; }
+.moon::before { top: 18%; left: 15%; width: 24%; height: 17%; }
+.moon::after { right: 14%; bottom: 17%; width: 18%; height: 14%; }
 
 .cloud {
   position: absolute;
-  width: 82px;
-  height: 18px;
-  background: rgba(185, 199, 214, 0.13);
-  box-shadow: 22px -18px 0 rgba(185, 199, 214, 0.13), 50px 0 0 rgba(185, 199, 214, 0.13);
+  height: 22px;
+  background: #141b20;
+  box-shadow: 28px -22px #141b20, 66px 0 #141b20;
 }
 
-.cloud-one { top: 25vh; left: 56vw; }
-.cloud-two { top: 39vh; left: 82vw; scale: 0.68; }
-.cloud-three { top: 16vh; left: 25vw; scale: 0.5; opacity: 0.72; }
+.cloud-one { top: 27%; right: 36%; width: 92px; }
+.cloud-two { top: 17%; left: 12%; width: 64px; scale: .68; opacity: .75; }
 
-.ridge,
+.blocks {
+  position: absolute;
+  right: 0;
+  bottom: 28px;
+  width: 48px;
+  height: 48px;
+}
+
+.blocks-back {
+  right: 336px;
+  background: #222c33;
+  box-shadow:
+    48px 0 #2a363f, 96px 0 #313e47, 144px 0 #28343d, 192px 0 #35424a,
+    240px 0 #2b373e, 288px 0 #3a2a22, 336px 0 #453127,
+    48px -48px #26323a, 96px -48px #31472c, 144px -48px #3e5834,
+    192px -48px #2c393f, 288px -48px #3d5633,
+    96px -96px #29363d, 144px -96px #41603a, 288px -96px #334a30,
+    144px -144px #26343c;
+}
+
+.blocks-front {
+  right: 96px;
+  background: #3a2922;
+  box-shadow:
+    48px 0 #443027, 96px 0 #50382b, 144px 0 #3b2b23,
+    48px -48px #45633a, 96px -48px #587744,
+    96px -96px #344b30;
+}
+
 .ground {
   position: absolute;
   right: 0;
   bottom: 0;
-}
-
-.ridge-far {
-  width: 50vw;
-  height: 31vh;
-  background: var(--hill-far);
-  box-shadow: inset 0 12px 0 rgba(255, 255, 255, 0.015);
-  clip-path: polygon(0 100%, 0 74%, 14% 74%, 14% 54%, 29% 54%, 29% 68%, 45% 68%, 45% 39%, 60% 39%, 60% 53%, 76% 53%, 76% 24%, 89% 24%, 89% 9%, 100% 9%, 100% 100%);
-}
-
-.ridge-near {
-  width: 36vw;
-  height: 23vh;
-  background: var(--hill);
-  box-shadow: inset 0 10px 0 rgba(255, 255, 255, 0.012);
-  clip-path: polygon(0 100%, 0 72%, 18% 72%, 18% 44%, 40% 44%, 40% 59%, 59% 59%, 59% 28%, 78% 28%, 78% 0, 100% 0, 100% 100%);
-}
-
-.tree {
-  position: absolute;
-  bottom: 22px;
-  width: 30px;
-  height: 92px;
-  background: #211817;
-}
-
-.tree::before,
-.tree::after,
-.tree i {
-  position: absolute;
-  display: block;
-  content: "";
-  background: var(--leaf);
-}
-
-.tree::before { width: 90px; height: 42px; left: -30px; top: -26px; }
-.tree::after { width: 58px; height: 46px; left: -14px; top: -58px; }
-.tree i { width: 32px; height: 26px; left: 0; top: -78px; }
-.tree-one { right: 6vw; scale: 0.84; }
-.tree-two { right: 25vw; scale: 0.55; transform-origin: bottom; opacity: 0.82; }
-
-.ground {
   left: 0;
-  height: 24px;
-  background:
-    repeating-linear-gradient(90deg, transparent 0 29px, rgba(255, 255, 255, 0.025) 29px 30px),
-    repeating-linear-gradient(90deg, var(--soil) 0 30px, #1a1618 30px 60px);
+  height: 28px;
+  border-top: 7px solid var(--grass);
+  background: var(--dirt);
 }
 
-@media (max-width: 720px) {
-  main { width: calc(100% - 32px); padding-bottom: 22vh; }
-  h1 { font-size: clamp(84px, 27vw, 126px); }
-  .hero .coming-soon { margin-left: 2px; }
-  .moon { top: 10%; right: 10%; width: 50px; height: 50px; }
-  .ridge-far { width: 88vw; height: 20vh; }
-  .ridge-near { width: 72vw; height: 14vh; }
-  .tree-two { display: none; }
+@media (max-width: 760px) {
+  main { width: calc(100% - 32px); }
+  .page { min-height: 100svh; padding: 18vh 0 14vh; }
+  .hero-page { align-items: start; padding-top: 24vh; }
+  .mark { top: 24px; width: 32px; height: 32px; }
+  .hero { width: 100%; }
+  h1 { font-size: clamp(66px, 20vw, 110px); }
+  .moon { top: 7vh; right: 7vw; width: 82px; }
+  .blocks-back { right: 192px; scale: .75; transform-origin: bottom right; }
+  .feature { grid-template-columns: 1fr; gap: 46px; }
+  h2 { font-size: clamp(52px, 16vw, 76px); }
+  .feature-copy p { font-size: 15px; }
+  .game-chat { padding: 20px; font-size: 12px; }
+  .goal-demo { grid-template-columns: 1fr; }
+  .goal-demo > b { grid-row: 2; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .hero > * { animation: arrive 700ms both; }
-  .hero > .coming-soon { animation-delay: 100ms; }
-  .cloud-one { animation: drift 22s ease-in-out infinite alternate; }
-  .cloud-two { animation: drift 29s ease-in-out infinite alternate-reverse; }
-  .cloud-three { animation: drift 34s ease-in-out infinite alternate; }
-  .moon { animation: moon-breathe 5s ease-in-out infinite alternate; }
+  .hero > * { animation: arrive 650ms both; }
+  .cloud-one { animation: drift 24s ease-in-out infinite alternate; }
+  .cloud-two { animation: drift 31s ease-in-out infinite alternate-reverse; }
+  .mark { animation: hover 4s steps(4, end) infinite; }
 }
 
 @keyframes arrive {
-  from { opacity: 0; translate: 0 15px; }
+  from { opacity: 0; translate: 0 16px; }
   to { opacity: 1; translate: 0 0; }
 }
 
-@keyframes drift { to { translate: 56px 0; } }
-@keyframes moon-breathe {
-  to { box-shadow: 18px 18px 0 rgba(232, 226, 207, 0.05), 0 0 62px rgba(232, 226, 207, 0.18); }
-}
+@keyframes drift { to { translate: 48px 0; } }
+@keyframes hover { 50% { translate: 0 -6px; } }

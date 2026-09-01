@@ -8,6 +8,9 @@ umask 077
 environment_file=$(mktemp /etc/minecraft-ai-god.env.XXXXXX)
 trap 'rm -f "$temporary" "$environment_file"' EXIT
 
+# Older installs had a daily backup timer that restarted the whole server.
+systemctl disable --now minecraft-backup.timer 2>/dev/null || true
+
 aws s3 cp "$artifact_uri" "$temporary"
 chown minecraft:minecraft "$temporary"
 api_key=$(aws ssm get-parameter \
@@ -33,6 +36,12 @@ mv "$temporary" /opt/minecraft/mods/ai-god.jar
 mv "$environment_file" /etc/minecraft-ai-god.env
 
 systemctl start minecraft
-sleep 15
-systemctl is-active --quiet minecraft
-trap - EXIT
+for ((attempt = 0; attempt < 45; attempt++)); do
+  if ss -ltn 'sport = :25565' | grep -q LISTEN; then
+    trap - EXIT
+    exit 0
+  fi
+  sleep 1
+done
+echo "Minecraft did not listen on port 25565 within 45 seconds" >&2
+exit 1
