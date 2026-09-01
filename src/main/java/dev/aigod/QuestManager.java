@@ -38,7 +38,7 @@ final class QuestManager {
 
     Quest create(ServerPlayer player, JsonObject arguments, Long dailyDeadlineDayTime) {
         if (quests.containsKey(player.getUUID())) {
-            throw new IllegalArgumentException("You already have an active quest.");
+            throw new IllegalArgumentException("This player already has an active contract.");
         }
 
         Quest.Objective objective = Quest.Objective.valueOf(requiredString(arguments, "objective"));
@@ -111,7 +111,7 @@ final class QuestManager {
     Quest cancel(ServerPlayer player) {
         Quest quest = quests.remove(player.getUUID());
         if (quest == null) {
-            throw new IllegalArgumentException(player.getGameProfile().name() + " has no active quest.");
+            throw new IllegalArgumentException(player.getGameProfile().name() + " has no active contract.");
         }
         save();
         return quest;
@@ -120,16 +120,16 @@ final class QuestManager {
     String forceComplete(ServerPlayer player) {
         Quest quest = quests.get(player.getUUID());
         if (quest == null) {
-            throw new IllegalArgumentException(player.getGameProfile().name() + " has no active quest.");
+            throw new IllegalArgumentException(player.getGameProfile().name() + " has no active contract.");
         }
         quest.forceComplete();
         changed(player, quest);
-        return "ok: quest of %s marked complete; reward command ran".formatted(player.getGameProfile().name());
+        return "ok: contract of %s marked complete; reward command ran".formatted(player.getGameProfile().name());
     }
 
     String status(ServerPlayer player) {
         Quest quest = quests.get(player.getUUID());
-        if (quest == null) return "no active quest";
+        if (quest == null) return "no active contract";
         String remaining;
         if (quest.deadlineDayTime() > 0) {
             long ticksLeft = Math.max(0, quest.deadlineDayTime() - server.overworld().getOverworldClockTime());
@@ -149,7 +149,7 @@ final class QuestManager {
 
     private void changed(ServerPlayer player, Quest quest) {
         if (quest.complete()) {
-            player.sendSystemMessage(Component.literal("§6quest complete. reward granted"));
+            player.sendSystemMessage(Component.literal("§6contract complete. reward granted"));
             runOperatorCommand(quest.rewardCommand(), player);
             quests.remove(player.getUUID());
         } else {

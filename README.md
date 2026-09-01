@@ -54,19 +54,20 @@ The model receives eleven custom tools:
   state so ordinary chat such as "say something every minute" works. Schedules
   persist in `ai-god-schedules.json` across server restarts.
 - `cancel_scheduled_event` stops one of those events by ID.
-- `create_quest` creates a timed personal `KILL`, `MINE`, `COLLECT`, or
-  `STAT` objective for one player. Its success reward and timeout punishment
-  are unrestricted operator commands. `STAT` objectives track any vanilla
-  statistic (`minecraft:custom/minecraft:jump`,
+- `create_contract` offers one player a personal contract: a timed `KILL`,
+  `MINE`, `COLLECT`, or `STAT` task with an unrestricted operator command as
+  reward and another as punishment. Contracts are how players get things from
+  the god: ask in chat, do the task, collect. `STAT` objectives track any
+  vanilla statistic (`minecraft:custom/minecraft:jump`,
   `minecraft:crafted/minecraft:bread`, sprint distance, fishing, trading, and
   hundreds more).
 - `create_daily_goal` sets the one server-wide daily goal that every player
   contributes to together, announced with a full-screen title and due at
-  sundown. Same objective types as `create_quest`.
-- `complete_challenge` marks an online player's active quest complete and runs
-  its reward command, for when an offering or deed satisfies the god.
-- `cancel_quest` voids a player's active quest with no reward or punishment,
-  so the god can renegotiate bargains, call deals off, or show mercy.
+  sundown. Same objective types as `create_contract`.
+- `complete_contract` marks an online player's active contract complete and
+  runs its reward command, for when an offering or deed satisfies the god.
+- `cancel_contract` voids a player's active contract with no reward or
+  punishment, so the god can renegotiate, call deals off, or show mercy.
 - `stay_silent` ends the turn without putting a god message in chat.
 
 Tool results go back to the model. It can issue more commands after seeing a
@@ -79,7 +80,7 @@ The god sees live context on every turn:
 
 - the new chat message and its speaker;
 - every online player's health, hunger, XP, position, dimension, inventory, and
-  active quest;
+  active contract;
 - server difficulty, day time, rain, and thunder;
 - the preceding shared server conversation and prior tool results.
 
@@ -104,10 +105,10 @@ the proclamation, and an ender-dragon growl.
   unreachable at sundown, the goal's stored punishment command runs for each
   player instead, so failure is never free.
 
-Personal requests stay separate: asking the god for something in chat ("i
-want a diamond pickaxe") gets an individual side bargain via the normal quest
-system, with its own task, reward, and punishment, without touching the
-server goal.
+Personal requests stay separate as **contracts**: ask the god for something
+in chat ("i want a diamond pickaxe") and it offers a contract, a personal
+task with its own reward and punishment, without touching the server goal.
+You have to do something for the god to get something from it.
 
 The dawn request tells the god the server day number (to scale difficulty),
 how many players are online (to size the total), and the last seven goals (so
@@ -126,7 +127,7 @@ dusk, night), the server day, and the goal's live progress.
 There are still no commands. Players offer items by saying so in normal chat
 ("take my offering") while holding the tribute; the god sees each player's
 held item in the live snapshot, takes accepted offerings itself via vanilla
-commands, and may respond with gifts, mercy, or `complete_challenge`.
+commands, and may respond with gifts, mercy, or `complete_contract`.
 
 Player deaths are reported to the god as they happen, with the vanilla death
 message, so it can mock, mourn, avenge, or ignore them.
@@ -140,9 +141,10 @@ The dedicated server cannot access client pixels. Instead, `inspect_view` gives
 the model useful and honest spatial awareness without requiring a client mod or
 pretending a screenshot exists.
 
-Bargains are negotiable in plain chat. Ask for 100 diamonds, get told to kill
-50 zombies, counter with "what about 40?" and the god may accept the amended
-deal (voiding and recreating the quest), hold firm, or declare the deal off.
+Contracts are negotiable in plain chat. Ask for 100 diamonds, get told to
+kill 50 zombies, counter with "what about 40?" and the god may accept the
+amended deal (voiding and recreating the contract), hold firm, or declare
+the deal off.
 
 ## Memory and compaction
 

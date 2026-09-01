@@ -237,7 +237,7 @@ final class GodService implements AutoCloseable {
         boolean requestsSilence = response.toolCalls().stream()
                 .anyMatch(call -> call.name().equals("stay_silent"));
         boolean createsQuest = response.toolCalls().stream()
-                .anyMatch(call -> call.name().equals("create_quest") || call.name().equals("create_daily_goal"));
+                .anyMatch(call -> call.name().equals("create_contract") || call.name().equals("create_daily_goal"));
         if (!response.message().isBlank() && !turn.silent && !requestsSilence && !createsQuest) {
             say(response.message());
         }
@@ -266,10 +266,10 @@ final class GodService implements AutoCloseable {
                 case "inspect_view" -> inspectView(player);
                 case "schedule_event" -> scheduleEvent(call.arguments(), player);
                 case "cancel_scheduled_event" -> cancelScheduledEvent(call.arguments());
-                case "create_quest" -> createQuest(turn, call.arguments(), player);
+                case "create_contract" -> createQuest(turn, call.arguments(), player);
                 case "create_daily_goal" -> createDailyGoal(turn, call.arguments(), player);
-                case "complete_challenge" -> completeChallenge(call.arguments());
-                case "cancel_quest" -> cancelQuest(call.arguments());
+                case "complete_contract" -> completeChallenge(call.arguments());
+                case "cancel_contract" -> cancelQuest(call.arguments());
                 case "stay_silent" -> {
                     turn.silent = true;
                     yield "Silence selected. No chat message will be posted for this turn.";
@@ -514,7 +514,7 @@ final class GodService implements AutoCloseable {
         Quest quest = quests.create(player, arguments, null);
         turn.silent = true;
         say(quest.challenge());
-        return "ok: personal quest created for %s: %s (%s %s x%d)".formatted(
+        return "ok: contract created for %s: %s (%s %s x%d)".formatted(
                 player.getGameProfile().name(), quest.challenge(),
                 quest.objective(), quest.target(), quest.amount());
     }
@@ -545,7 +545,7 @@ final class GodService implements AutoCloseable {
         ServerPlayer target = server.getPlayerList().getPlayerByName(name);
         if (target == null) throw new IllegalArgumentException("No online player named " + name);
         quests.cancel(target);
-        return "ok: quest of %s voided with no reward or punishment".formatted(name);
+        return "ok: contract of %s voided with no reward or punishment".formatted(name);
     }
 
     private void goalFanfare(ServerPlayer player, ServerGoal goal) {
@@ -591,7 +591,7 @@ final class GodService implements AutoCloseable {
                     .append(" dimension=").append(player.level().dimension().identifier())
                     .append(" holding=[").append(heldItem(player)).append(']')
                     .append(" inventory=[").append(inventory(player)).append(']')
-                    .append(" quest=[").append(quests.status(player)).append(']');
+                    .append(" contract=[").append(quests.status(player)).append(']');
         }
         String lead = turn.systemEvent
                 ? "Automatic server event concerning %s: %s"
