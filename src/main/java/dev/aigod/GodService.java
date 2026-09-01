@@ -37,7 +37,8 @@ final class GodService implements AutoCloseable {
     private final ConversationStore conversationStore;
     private final ScheduleStore scheduleStore;
     private final ArrayDeque<ChatTurn> queue = new ArrayDeque<>();
-    private final Map<UUID, Long> pendingDailyDeadline = new HashMap<>();
+    private Long pendingGoalDeadline;
+    private long pendingGoalDay;
     private final List<DeferredCommand> deferredCommands = new ArrayList<>();
     private final List<ScheduledEvent> scheduledEvents = new ArrayList<>();
     private final Map<UUID, Set<String>> completedAdvancements = new HashMap<>();
@@ -53,7 +54,7 @@ final class GodService implements AutoCloseable {
         this.godName = godName;
         this.client = new OpenAiGodClient(apiKey, model, godName, compactThreshold);
         this.quests = new QuestManager(server, questStore, this::deliverConsequence);
-        this.daily = new DailyChallengeManager(server, this, quests, dailyStore);
+        this.daily = new DailyChallengeManager(server, this, dailyStore);
         this.conversationStore = conversationStore;
         this.scheduleStore = scheduleStore;
         this.scheduledEvents.addAll(scheduleStore.load());
@@ -65,25 +66,67 @@ final class GodService implements AutoCloseable {
         processNext();
     }
 
-    void requestDailyChallenge(ServerPlayer player, long deadlineDayTime, long day,
-                               List<String> pastChallenges, Runnable onIssued, Runnable onFailed) {
-        pendingDailyDeadline.put(player.getUUID(), deadlineDayTime);
-        String history = pastChallenges.isEmpty()
-                ? "This is their first daily challenge ever; make it a memorable initiation."
-                : "Their recent daily challenges, oldest first, which you must NOT repeat or closely echo:\n- "
-                        + String.join("\n- ", pastChallenges);
-        ChatTurn turn = new ChatTurn(player.getUUID(), """
-                A new Minecraft day dawns (server day %d). Issue today's daily challenge to %s with
-                create_quest now. Make it genuinely fun and genuinely hard, scaled to how long the
-                server has lived and to their gear in the live state below, and achievable before
-                sundown. Set time_limit_minutes to any value; the deadline is overridden to sundown
-                of this day. create_quest posts the one announcement; do not announce it with
+    void recordKill(ServerPlayer player, String entityId) {
+        quests.recordKill(player, entityId);
+        daily.recordKill(entityId);
+    }
+
+    void recordMine(ServerPlayer player, String blockId) {
+        quests.recordMine(player, blockId);
+        daily.recordMine(blockId);
+    }
+
+    void requestDailyGoal(ServerPlayer speaker, long deadlineDayTime, long day,
+                          List<String> pastGoals, Runnable onIssued, Runnable onFailed) {
+        pendingGoalDeadline = deadlineDayTime;
+        pendingGoalDay = day;
+        String history = pastGoals.isEmpty()
+                ? "This is the server's first daily goal ever; make it a memorable initiation."
+                : "Recent daily goals, oldest first, which you must NOT repeat or closely echo:\n- "
+                        + String.join("\n- ", pastGoals);
+        ChatTurn turn = new ChatTurn(speaker.getUUID(), """
+                A new Minecraft day dawns (server day %d). Set today's ONE server-wide goal with
+                create_daily_goal now. Every player's contributions pool into the same total, so
+                size the amount for the whole server (%d online now), genuinely fun and genuinely
+                hard, and achievable before sundown from the live state below. create_daily_goal
+                posts the one announcement with a full-screen title; do not announce it again with
                 run_command or repeat it in your reply.
                 %s
-                """.formatted(day, player.getGameProfile().name(), history));
+                """.formatted(day, server.getPlayerCount(), history));
         turn.systemEvent = true;
         turn.onSuccess = onIssued;
         turn.onFailure = onFailed;
+        queue.addLast(turn);
+        processNext();
+    }
+
+    void goalCompleted(ServerGoal goal) {
+        ServerPlayer speaker = server.getPlayerList().getPlayers().stream().findFirst().orElse(null);
+        if (speaker == null) return;
+        ChatTurn turn = new ChatTurn(speaker.getUUID(), """
+                The server COMPLETED today's goal: "%s" (%d %s). The stored reward already ran for
+                every online player. Celebrate briefly in your voice; a little spectacle (particles,
+                a triumphant sound) is welcome. Do not repeat the reward.
+                """.formatted(goal.challenge(), goal.amount(), goal.target()));
+        turn.systemEvent = true;
+        queue.addLast(turn);
+        processNext();
+    }
+
+    void goalFailed(ServerGoal goal) {
+        ServerPlayer speaker = server.getPlayerList().getPlayers().stream().findFirst().orElse(null);
+        if (speaker == null) return;
+        ChatTurn turn = new ChatTurn(speaker.getUUID(), """
+                The sun has set and the server FAILED today's goal: "%s" (progress %d/%d %s).
+                Deliver a fitting consequence to EVERYONE online right now using run_command,
+                matched to the goal they failed. Briefly tell them what happened.
+                """.formatted(goal.challenge(), goal.progress(), goal.amount(), goal.target()));
+        turn.systemEvent = true;
+        turn.onFailure = () -> {
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                quests.runOperatorCommand(goal.punishmentCommand(), player);
+            }
+        };
         queue.addLast(turn);
         processNext();
     }
@@ -180,7 +223,7 @@ final class GodService implements AutoCloseable {
                             + (cause == null ? "speaker vanished" : cause.getMessage())));
                 }
             }
-            pendingDailyDeadline.remove(turn.playerId);
+            pendingGoalDeadline = null;
             if (turn.onFailure != null) turn.onFailure.run();
             finishTurn();
             return;
@@ -191,13 +234,13 @@ final class GodService implements AutoCloseable {
         boolean requestsSilence = response.toolCalls().stream()
                 .anyMatch(call -> call.name().equals("stay_silent"));
         boolean createsQuest = response.toolCalls().stream()
-                .anyMatch(call -> call.name().equals("create_quest"));
+                .anyMatch(call -> call.name().equals("create_quest") || call.name().equals("create_daily_goal"));
         if (!response.message().isBlank() && !turn.silent && !requestsSilence && !createsQuest) {
             say(response.message());
         }
 
         if (response.toolCalls().isEmpty()) {
-            pendingDailyDeadline.remove(turn.playerId);
+            pendingGoalDeadline = null;
             if (turn.onSuccess != null) turn.onSuccess.run();
             finishTurn();
             return;
@@ -221,6 +264,7 @@ final class GodService implements AutoCloseable {
                 case "schedule_event" -> scheduleEvent(call.arguments(), player);
                 case "cancel_scheduled_event" -> cancelScheduledEvent(call.arguments());
                 case "create_quest" -> createQuest(turn, call.arguments(), player);
+                case "create_daily_goal" -> createDailyGoal(turn, call.arguments(), player);
                 case "complete_challenge" -> completeChallenge(call.arguments());
                 case "cancel_quest" -> cancelQuest(call.arguments());
                 case "stay_silent" -> {
@@ -463,17 +507,26 @@ final class GodService implements AutoCloseable {
     }
 
     private String createQuest(ChatTurn turn, JsonObject arguments, ServerPlayer player) {
-        Long dailyDeadline = pendingDailyDeadline.remove(player.getUUID());
-        Quest quest = quests.create(player, arguments, dailyDeadline);
+        Quest quest = quests.create(player, arguments, null);
         turn.silent = true;
-        player.sendSystemMessage(Component.literal("§d[%s] §f%s"
-                .formatted(godName, MinecraftChatText.fromModel(quest.challenge()))));
-        if (quest.kind() == Quest.Kind.DAILY) dailyFanfare(player, quest);
-        return "ok: %s quest created for %s: %s (%s %s x%d)%s".formatted(
-                quest.kind() == Quest.Kind.DAILY ? "daily" : "ad-hoc",
+        say(quest.challenge());
+        return "ok: personal quest created for %s: %s (%s %s x%d)".formatted(
                 player.getGameProfile().name(), quest.challenge(),
-                quest.objective(), quest.target(), quest.amount(),
-                quest.kind() == Quest.Kind.DAILY ? "; deadline is sundown today" : "");
+                quest.objective(), quest.target(), quest.amount());
+    }
+
+    private String createDailyGoal(ChatTurn turn, JsonObject arguments, ServerPlayer player) {
+        if (pendingGoalDeadline == null) {
+            throw new IllegalArgumentException(
+                    "No daily goal was requested; today's goal already exists or it is past sundown.");
+        }
+        ServerGoal goal = daily.createGoal(arguments, pendingGoalDeadline, pendingGoalDay);
+        pendingGoalDeadline = null;
+        turn.silent = true;
+        say(goal.challenge());
+        goalFanfare(player, goal);
+        return "ok: server goal set for day %d: %s (%s %s x%d shared by all players; deadline is sundown)"
+                .formatted(goal.day(), goal.challenge(), goal.objective(), goal.target(), goal.amount());
     }
 
     private String completeChallenge(JsonObject arguments) {
@@ -487,22 +540,16 @@ final class GodService implements AutoCloseable {
         String name = arguments.get("player_name").getAsString();
         ServerPlayer target = server.getPlayerList().getPlayerByName(name);
         if (target == null) throw new IllegalArgumentException("No online player named " + name);
-        Quest cancelled = quests.cancel(target);
-        if (cancelled.kind() == Quest.Kind.DAILY) {
-            pendingDailyDeadline.put(target.getUUID(), cancelled.deadlineDayTime());
-            return "ok: daily challenge of %s voided; if you create_quest a replacement now it keeps today's sundown deadline"
-                    .formatted(name);
-        }
+        quests.cancel(target);
         return "ok: quest of %s voided with no reward or punishment".formatted(name);
     }
 
-    private void dailyFanfare(ServerPlayer player, Quest quest) {
-        String name = player.getGameProfile().name();
-        quests.runOperatorCommand("title " + name + " times 10 70 20", player);
-        quests.runOperatorCommand("title " + name + " subtitle {\"text\":"
-                + new JsonPrimitive(quest.challenge()) + ",\"color\":\"gold\"}", player);
-        quests.runOperatorCommand("title " + name + " title {\"text\":\"Daily Challenge\",\"color\":\"red\",\"bold\":true}", player);
-        quests.runOperatorCommand("playsound minecraft:entity.ender_dragon.growl master " + name, player);
+    private void goalFanfare(ServerPlayer player, ServerGoal goal) {
+        quests.runOperatorCommand("title @a times 10 70 20", player);
+        quests.runOperatorCommand("title @a subtitle {\"text\":"
+                + new JsonPrimitive(goal.challenge()) + ",\"color\":\"gold\"}", player);
+        quests.runOperatorCommand("title @a title {\"text\":\"Today's Goal\",\"color\":\"red\",\"bold\":true}", player);
+        quests.runOperatorCommand("playsound minecraft:entity.ender_dragon.growl master @a", player);
     }
 
     private void finishTurn() {
@@ -552,13 +599,14 @@ final class GodService implements AutoCloseable {
                 Live server state:
                 difficulty=%s, day=%d, sky=%s, daytime_ticks=%d, raining=%s, thundering=%s
                 online_players=%d
+                server_goal=[%s]
                 %s%s
                 """.formatted(
                 lead.formatted(speaker.getGameProfile().name(), turn.message),
                 server.getWorldData().getDifficulty(), DayCycle.day(level.getOverworldClockTime()),
                 DayCycle.phase(level.getOverworldClockTime()), level.getOverworldClockTime(),
                 level.isRaining(), level.isThundering(),
-                server.getPlayerCount(), players, schedules);
+                server.getPlayerCount(), daily.statusLine(), players, schedules);
     }
 
     private static String heldItem(ServerPlayer player) {

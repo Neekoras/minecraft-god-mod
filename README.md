@@ -38,7 +38,7 @@ DNS service record to reach the game server, so players still enter only
 
 ## What it can do
 
-The model receives ten custom tools:
+The model receives eleven custom tools:
 
 - `run_command` executes any installed server command as the speaking player
   with level-4 permission. Relative coordinates and selectors therefore start
@@ -54,12 +54,15 @@ The model receives ten custom tools:
   state so ordinary chat such as "say something every minute" works. Schedules
   persist in `ai-god-schedules.json` across server restarts.
 - `cancel_scheduled_event` stops one of those events by ID.
-- `create_quest` creates a timed `KILL`, `MINE`, `COLLECT`, or `STAT`
-  objective. Its success reward and timeout punishment are unrestricted
-  operator commands. `STAT` objectives track any vanilla statistic
-  (`minecraft:custom/minecraft:jump`, `minecraft:crafted/minecraft:bread`,
-  sprint distance, fishing, trading, and hundreds more), which gives daily
-  challenges variety beyond kill/mine/collect.
+- `create_quest` creates a timed personal `KILL`, `MINE`, `COLLECT`, or
+  `STAT` objective for one player. Its success reward and timeout punishment
+  are unrestricted operator commands. `STAT` objectives track any vanilla
+  statistic (`minecraft:custom/minecraft:jump`,
+  `minecraft:crafted/minecraft:bread`, sprint distance, fishing, trading, and
+  hundreds more).
+- `create_daily_goal` sets the one server-wide daily goal that every player
+  contributes to together, announced with a full-screen title and due at
+  sundown. Same objective types as `create_quest`.
 - `complete_challenge` marks an online player's active quest complete and runs
   its reward command, for when an offering or deed satisfies the god.
 - `cancel_quest` voids a player's active quest with no reward or punishment,
@@ -84,36 +87,39 @@ Chat turns are queued in order, so simultaneous messages cannot fork or race
 the god's shared memory. Model-written chat is kept as plain Minecraft text: no
 Markdown renderer, headings, or emoji-heavy formatting.
 
-## Daily challenges
+## The daily server goal
 
-Every Minecraft morning the god issues each online player a daily challenge,
-created through the normal quest system but with its deadline pinned to
-**sundown of that day** (game time, not wall-clock). The god is instructed to
-keep daily challenges varied, fun, and hard.
+Every Minecraft morning the god sets **one goal for the whole server**, due by
+**sundown of that day** (game time, not wall-clock). Every player's kills,
+mined blocks, gathered items, or stats pool into the same shared total, and
+progress is announced at each quarter in plain units ("server goal: 5/12
+cobblestone"). The goal arrives with a full-screen title, a subtitle carrying
+the proclamation, and an ender-dragon growl.
 
-- Complete it before sundown and the quest's reward command runs as usual.
-- Fail, and the god itself is told about the failure and invents a consequence
-  on the spot, matched to the challenge it set: mob ambushes, lightning,
+- Reach the total before sundown and the goal's reward command runs once for
+  every online player.
+- Fail, and the god is told about the failure and invents a consequence for
+  everyone on the spot, matched to the goal it set: mob ambushes, lightning,
   confiscations, whatever it decides through `run_command`. If the API is
-  unreachable at sundown, the quest's stored punishment command runs instead,
-  so failure is never free.
+  unreachable at sundown, the goal's stored punishment command runs for each
+  player instead, so failure is never free.
 
-Daily challenges arrive with a full-screen title, a subtitle carrying the
-proclamation, and an ender-dragon growl. The dawn request tells the god the
-server day number (to scale difficulty) and the player's last seven daily
-challenges (so it does not repeat itself); both live in `ai-god-daily.json`.
+Personal requests stay separate: asking the god for something in chat ("i
+want a diamond pickaxe") gets an individual side bargain via the normal quest
+system, with its own task, reward, and punishment, without touching the
+server goal.
+
+The dawn request tells the god the server day number (to scale difficulty),
+how many players are online (to size the total), and the last seven goals (so
+it does not repeat itself); the active goal and history live in
+`ai-god-daily.json`, so restarts do not double-issue. If the goal cannot be
+set (API error, empty server), the mod retries once a minute until sundown.
 
 The god's standing instructions include a command playbook (titles, sounds,
 particles, themed mob summons, effects, `worldborder` as a server-wide
 ultimatum), and `command_help` gives it the real command tree of the running
-server, mods included. The live snapshot also names the sky phase (dawn,
-midday, dusk, night) and the server day.
-
-One challenge is issued per player per day; the issuance state is persisted
-to `ai-god-daily.json` in the world folder so restarts do not double-issue.
-Players who join mid-day receive their challenge on the next scheduler pass.
-If a challenge cannot be issued (API error), the mod retries once a minute
-until sundown.
+server, mods included. The live snapshot names the sky phase (dawn, midday,
+dusk, night), the server day, and the goal's live progress.
 
 ## Offerings and deaths
 
@@ -137,7 +143,6 @@ pretending a screenshot exists.
 Bargains are negotiable in plain chat. Ask for 100 diamonds, get told to kill
 50 zombies, counter with "what about 40?" and the god may accept the amended
 deal (voiding and recreating the quest), hold firm, or declare the deal off.
-A renegotiated daily challenge keeps its sundown deadline.
 
 ## Memory and compaction
 
