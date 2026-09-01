@@ -38,7 +38,7 @@ final class QuestManager {
 
     Quest create(ServerPlayer player, JsonObject arguments, Long dailyDeadlineDayTime) {
         if (quests.containsKey(player.getUUID())) {
-            throw new IllegalArgumentException("You already have an active quest.");
+            throw new IllegalArgumentException("This player already has an active contract.");
         }
 
         Quest.Objective objective = Quest.Objective.valueOf(requiredString(arguments, "objective"));
@@ -111,7 +111,7 @@ final class QuestManager {
     Quest cancel(ServerPlayer player) {
         Quest quest = quests.remove(player.getUUID());
         if (quest == null) {
-            throw new IllegalArgumentException(player.getGameProfile().name() + " has no active quest.");
+            throw new IllegalArgumentException(player.getGameProfile().name() + " has no active contract.");
         }
         save();
         return quest;
@@ -120,16 +120,16 @@ final class QuestManager {
     String forceComplete(ServerPlayer player) {
         Quest quest = quests.get(player.getUUID());
         if (quest == null) {
-            throw new IllegalArgumentException(player.getGameProfile().name() + " has no active quest.");
+            throw new IllegalArgumentException(player.getGameProfile().name() + " has no active contract.");
         }
         quest.forceComplete();
         changed(player, quest);
-        return "ok: quest of %s marked complete; reward command ran".formatted(player.getGameProfile().name());
+        return "ok: contract of %s marked complete; reward command ran".formatted(player.getGameProfile().name());
     }
 
     String status(ServerPlayer player) {
         Quest quest = quests.get(player.getUUID());
-        if (quest == null) return "no active quest";
+        if (quest == null) return "no active contract";
         String remaining;
         if (quest.deadlineDayTime() > 0) {
             long ticksLeft = Math.max(0, quest.deadlineDayTime() - server.overworld().getOverworldClockTime());
@@ -139,7 +139,7 @@ final class QuestManager {
             remaining = "%dm %02ds remain".formatted(seconds / 60, seconds % 60);
         }
         return "%s — %d/%d %s; %s".formatted(
-                quest.challenge(), quest.progress(), quest.amount(), quest.target(), remaining);
+                quest.challenge(), quest.progress(), quest.amount(), prettyTarget(quest.target()), remaining);
     }
 
     private void record(ServerPlayer player, Quest.Objective objective, String target) {
@@ -149,11 +149,12 @@ final class QuestManager {
 
     private void changed(ServerPlayer player, Quest quest) {
         if (quest.complete()) {
-            player.sendSystemMessage(Component.literal("§6quest complete. reward granted"));
+            player.sendSystemMessage(Component.literal("§6contract complete. reward granted"));
             runOperatorCommand(quest.rewardCommand(), player);
             quests.remove(player.getUUID());
         } else {
-            player.sendSystemMessage(Component.literal("§eprogress: %d/%d".formatted(quest.progress(), quest.amount())));
+            player.sendSystemMessage(Component.literal("§eprogress: %d/%d %s".formatted(
+                    quest.progress(), quest.amount(), prettyTarget(quest.target()))));
         }
         save();
     }
@@ -168,7 +169,13 @@ final class QuestManager {
         );
     }
 
-    private static int count(ServerPlayer player, String itemId) {
+    /** "minecraft:cobblestone" -> "cobblestone", "minecraft:custom/minecraft:jump" -> "jump". */
+    static String prettyTarget(String target) {
+        String tail = target.substring(target.lastIndexOf('/') + 1);
+        return tail.substring(tail.indexOf(':') + 1).replace('_', ' ');
+    }
+
+    static int count(ServerPlayer player, String itemId) {
         int count = 0;
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
@@ -177,7 +184,7 @@ final class QuestManager {
         return count;
     }
 
-    private static void validateTarget(Quest.Objective objective, String target) {
+    static void validateTarget(Quest.Objective objective, String target) {
         if (objective == Quest.Objective.STAT) {
             resolveStat(target);
             return;
@@ -220,7 +227,7 @@ final class QuestManager {
         return type.get(value);
     }
 
-    private static String normalizedId(String value) {
+    static String normalizedId(String value) {
         return value.contains(":") ? value : "minecraft:" + value;
     }
 

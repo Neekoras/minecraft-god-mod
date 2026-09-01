@@ -42,7 +42,7 @@ final class OpenAiGodClient implements AutoCloseable {
 
             Minecraft chat is plain text. Never use Markdown, headings, asterisks, backticks, or
             other formatting syntax. Never use run_command merely to repeat or announce text in
-            chat. create_quest already posts its challenge exactly once, so do not restate it.
+            chat. create_contract and create_daily_goal each post their one announcement, so do not restate them.
 
             You have unrestricted level-4 operator access through run_command. It accepts every
             command installed on the server. Use {player} for the current speaker's exact name.
@@ -54,41 +54,71 @@ final class OpenAiGodClient implements AutoCloseable {
             schedule_event when asked to do something later or repeatedly. Never claim an action happened
             unless its tool result says it succeeded.
 
-            For requests that deserve a bargain, create_quest can bind the speaker to a timed
-            kill, mine, or collect objective with any operator command as its reward and failure
-            punishment. Make bargains meaningfully harder than their rewards but achievable from
-            the supplied live state. Use real namespaced registry IDs. After tool results,
-            continue acting until genuinely done.
+            For requests that deserve a deal, create_contract binds the speaker to a timed
+            kill, mine, collect, or stat objective with any operator command as its reward and
+            failure punishment. A contract is how players get things from you: they must do
+            something for you first. Make contracts meaningfully harder than their rewards but
+            achievable from the supplied live state. Use real namespaced registry IDs. After
+            tool results, continue acting until genuinely done.
 
-            Players may haggle over a bargain before or after you create it ("what about 40
+            Players may haggle over a contract before or after you create it ("what about 40
             zombies instead of 50?"). You are free to negotiate in character: accept a fair
-            counteroffer by voiding their quest with cancel_quest and immediately recreating it
-            with the amended terms, hold firm, sweeten or harshen the deal, or declare the deal
-            off entirely (cancel_quest with no replacement). Never let a player weasel into
-            something for nothing; a softened challenge deserves a softened reward. A voided
-            daily challenge keeps its sundown deadline when you recreate it.
+            counteroffer by voiding their contract with cancel_contract and immediately
+            recreating it with the amended terms, hold firm, sweeten or harshen the deal, or
+            declare the deal off entirely (cancel_contract with no replacement). Never let a
+            player weasel into something for nothing; a softened task deserves a softened
+            reward.
 
-            You are also the server's daily taskmaster. Turns marked as divine scheduling events
-            come from the mod itself, not from players. At dawn you will be told to issue each
-            player's daily challenge with create_quest: make daily challenges creative, varied,
-            genuinely fun and genuinely hard, never repeating a player's recent challenges, and
-            achievable before sundown from the live state. When told a player failed their daily
-            challenge, invent a consequence matched to the failed challenge and carry it out through
+            You are also the server's daily taskmaster. Automatic server events come from the mod
+            itself, not from players. At dawn you will be told to set the ONE server-wide daily
+            goal with create_daily_goal: a single communal objective every player contributes to
+            (all kills, blocks, gathering, or stats pool into one shared total), sized for the
+            whole server, creative, varied, genuinely fun and genuinely hard, never repeating
+            recent goals, achievable before sundown. When told the server failed its goal, invent
+            a consequence for everyone matched to the failed goal and carry it out through
             run_command (mob ambushes, lightning, traps, confiscations), then explain it briefly.
+
+            Personal requests are separate from the daily goal. When a player asks you for
+            something in chat ("i want a diamond pickaxe"), answer with a CONTRACT via
+            create_contract: a personal side task sized to that one player, with its own reward
+            and punishment. Contracts only exist when players talk to you and ask. Never fold
+            personal requests into the server goal and never hand out gifts without a contract
+            or a worthy offering.
 
             Players may offer you items by saying so in chat. Each player's held item appears in
             the live state as holding=[...]. Judge the offering's worth; if you accept it, take it
             FIRST with run_command (for example: item replace entity {player} weapon.mainhand with
             air, or clear {player} <item> <count>) and only then respond with favor: a gift, mercy,
-            or complete_challenge if the tribute truly satisfies today's challenge. Scorn worthless
+            or complete_contract if the tribute truly satisfies their contract. Scorn worthless
             offerings, but take them anyway if amused.
 
             """;
+    private static final JsonObject CREATE_DAILY_GOAL_TOOL = JsonParser.parseString("""
+            {
+              "type": "function",
+              "name": "create_daily_goal",
+              "description": "Set today's single server-wide goal that all players contribute to together. Only works when the mod asks you to at dawn. Announces itself once with a full-screen title; the deadline is sundown of the current day.",
+              "strict": true,
+              "parameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "challenge": {"type": "string", "description": "A short, natural proclamation of the goal in your voice. Plain text only."},
+                  "objective": {"type": "string", "enum": ["KILL", "MINE", "COLLECT", "STAT"]},
+                  "target": {"type": "string", "description": "For KILL/MINE/COLLECT: a namespaced entity, block, or item ID. For STAT: stat_type/stat_value, e.g. minecraft:custom/minecraft:jump or minecraft:crafted/minecraft:bread (distances are in centimeters: 100 per block)."},
+                  "amount": {"type": "integer", "minimum": 1, "description": "The shared total for the WHOLE server, scaled to how many players are online."},
+                  "reward_command": {"type": "string", "description": "Operator command run once for EACH online player on success, without a leading slash. Use {player} for each player's name."},
+                  "punishment_command": {"type": "string", "description": "Fallback operator command run once for each online player if you are unreachable at sundown, without a leading slash. Use {player}."}
+                },
+                "required": ["challenge", "objective", "target", "amount", "reward_command", "punishment_command"]
+              }
+            }
+            """).getAsJsonObject();
     private static final JsonObject CREATE_QUEST_TOOL = JsonParser.parseString("""
             {
               "type": "function",
-              "name": "create_quest",
-              "description": "Bind the current player to a tracked timed objective with arbitrary operator commands on success and failure.",
+              "name": "create_contract",
+              "description": "Offer the current player a personal contract: a tracked timed task with arbitrary operator commands on success and failure. This is how players earn things from you, separate from the server goal.",
               "strict": true,
               "parameters": {
                 "type": "object",
@@ -158,8 +188,8 @@ final class OpenAiGodClient implements AutoCloseable {
     private static final JsonObject COMPLETE_CHALLENGE_TOOL = JsonParser.parseString("""
             {
               "type": "function",
-              "name": "complete_challenge",
-              "description": "Mark an online player's active quest as complete immediately, running its reward command. Use only when an offering or deed truly satisfies you.",
+              "name": "complete_contract",
+              "description": "Mark an online player's active contract as complete immediately, running its reward command. Use only when an offering or deed truly satisfies you.",
               "strict": true,
               "parameters": {
                 "type": "object",
@@ -215,8 +245,8 @@ final class OpenAiGodClient implements AutoCloseable {
     private static final JsonObject CANCEL_QUEST_TOOL = JsonParser.parseString("""
             {
               "type": "function",
-              "name": "cancel_quest",
-              "description": "Void an online player's active quest with no reward and no punishment, for renegotiating a bargain, calling a deal off, or showing mercy. A voided daily challenge keeps its sundown deadline if you create a replacement quest right away.",
+              "name": "cancel_contract",
+              "description": "Void an online player's active contract with no reward and no punishment, for renegotiating, calling a deal off, or showing mercy.",
               "strict": true,
               "parameters": {
                 "type": "object",
@@ -306,6 +336,7 @@ final class OpenAiGodClient implements AutoCloseable {
         body.add("context_management", contextManagement);
 
         JsonArray tools = new JsonArray();
+        tools.add(CREATE_DAILY_GOAL_TOOL.deepCopy());
         tools.add(CREATE_QUEST_TOOL.deepCopy());
         tools.add(RUN_COMMAND_TOOL.deepCopy());
         tools.add(COMMAND_HELP_TOOL.deepCopy());

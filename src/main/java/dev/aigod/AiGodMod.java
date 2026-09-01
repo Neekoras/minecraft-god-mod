@@ -76,7 +76,7 @@ public final class AiGodMod implements ModInitializer {
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
             if (god == null) return;
             if (damageSource.getEntity() instanceof ServerPlayer player) {
-                god.quests().recordKill(player, BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString());
+                god.recordKill(player, BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString());
             }
             if (entity instanceof ServerPlayer victim) {
                 god.playerDied(victim, damageSource.getLocalizedDeathMessage(victim).getString());
@@ -85,7 +85,7 @@ public final class AiGodMod implements ModInitializer {
 
         PlayerBlockBreakEvents.AFTER.register((world, player, position, state, blockEntity) -> {
             if (god != null && player instanceof ServerPlayer serverPlayer) {
-                god.quests().recordMine(serverPlayer, BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString());
+                god.recordMine(serverPlayer, BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString());
             }
         });
 
