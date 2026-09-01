@@ -68,13 +68,20 @@ final class OpenAiGodClient implements AutoCloseable {
             something for nothing; a softened challenge deserves a softened reward. A voided
             daily challenge keeps its sundown deadline when you recreate it.
 
-            You are also the server's daily taskmaster. Turns marked as divine scheduling events
-            come from the mod itself, not from players. At dawn you will be told to issue each
-            player's daily challenge with create_quest: make daily challenges creative, varied,
-            genuinely fun and genuinely hard, never repeating a player's recent challenges, and
-            achievable before sundown from the live state. When told a player failed their daily
-            challenge, invent a consequence matched to the failed challenge and carry it out through
+            You are also the server's daily taskmaster. Automatic server events come from the mod
+            itself, not from players. At dawn you will be told to set the ONE server-wide daily
+            goal with create_daily_goal: a single communal objective every player contributes to
+            (all kills, blocks, gathering, or stats pool into one shared total), sized for the
+            whole server, creative, varied, genuinely fun and genuinely hard, never repeating
+            recent goals, achievable before sundown. When told the server failed its goal, invent
+            a consequence for everyone matched to the failed goal and carry it out through
             run_command (mob ambushes, lightning, traps, confiscations), then explain it briefly.
+
+            Personal requests are separate from the daily goal. When a player asks you for
+            something in chat ("i want a diamond pickaxe"), answer with an individual bargain via
+            create_quest: a personal side task sized to that one player, with its own reward and
+            punishment. Never fold personal requests into the server goal and never hand out
+            gifts without a task or a worthy offering.
 
             Players may offer you items by saying so in chat. Each player's held item appears in
             the live state as holding=[...]. Judge the offering's worth; if you accept it, take it
@@ -84,6 +91,27 @@ final class OpenAiGodClient implements AutoCloseable {
             offerings, but take them anyway if amused.
 
             """;
+    private static final JsonObject CREATE_DAILY_GOAL_TOOL = JsonParser.parseString("""
+            {
+              "type": "function",
+              "name": "create_daily_goal",
+              "description": "Set today's single server-wide goal that all players contribute to together. Only works when the mod asks you to at dawn. Announces itself once with a full-screen title; the deadline is sundown of the current day.",
+              "strict": true,
+              "parameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "challenge": {"type": "string", "description": "A short, natural proclamation of the goal in your voice. Plain text only."},
+                  "objective": {"type": "string", "enum": ["KILL", "MINE", "COLLECT", "STAT"]},
+                  "target": {"type": "string", "description": "For KILL/MINE/COLLECT: a namespaced entity, block, or item ID. For STAT: stat_type/stat_value, e.g. minecraft:custom/minecraft:jump or minecraft:crafted/minecraft:bread (distances are in centimeters: 100 per block)."},
+                  "amount": {"type": "integer", "minimum": 1, "description": "The shared total for the WHOLE server, scaled to how many players are online."},
+                  "reward_command": {"type": "string", "description": "Operator command run once for EACH online player on success, without a leading slash. Use {player} for each player's name."},
+                  "punishment_command": {"type": "string", "description": "Fallback operator command run once for each online player if you are unreachable at sundown, without a leading slash. Use {player}."}
+                },
+                "required": ["challenge", "objective", "target", "amount", "reward_command", "punishment_command"]
+              }
+            }
+            """).getAsJsonObject();
     private static final JsonObject CREATE_QUEST_TOOL = JsonParser.parseString("""
             {
               "type": "function",
@@ -306,6 +334,7 @@ final class OpenAiGodClient implements AutoCloseable {
         body.add("context_management", contextManagement);
 
         JsonArray tools = new JsonArray();
+        tools.add(CREATE_DAILY_GOAL_TOOL.deepCopy());
         tools.add(CREATE_QUEST_TOOL.deepCopy());
         tools.add(RUN_COMMAND_TOOL.deepCopy());
         tools.add(COMMAND_HELP_TOOL.deepCopy());

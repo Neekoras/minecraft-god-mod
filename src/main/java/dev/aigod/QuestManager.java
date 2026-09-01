@@ -139,7 +139,7 @@ final class QuestManager {
             remaining = "%dm %02ds remain".formatted(seconds / 60, seconds % 60);
         }
         return "%s — %d/%d %s; %s".formatted(
-                quest.challenge(), quest.progress(), quest.amount(), quest.target(), remaining);
+                quest.challenge(), quest.progress(), quest.amount(), prettyTarget(quest.target()), remaining);
     }
 
     private void record(ServerPlayer player, Quest.Objective objective, String target) {
@@ -153,7 +153,8 @@ final class QuestManager {
             runOperatorCommand(quest.rewardCommand(), player);
             quests.remove(player.getUUID());
         } else {
-            player.sendSystemMessage(Component.literal("§eprogress: %d/%d".formatted(quest.progress(), quest.amount())));
+            player.sendSystemMessage(Component.literal("§eprogress: %d/%d %s".formatted(
+                    quest.progress(), quest.amount(), prettyTarget(quest.target()))));
         }
         save();
     }
@@ -168,7 +169,13 @@ final class QuestManager {
         );
     }
 
-    private static int count(ServerPlayer player, String itemId) {
+    /** "minecraft:cobblestone" -> "cobblestone", "minecraft:custom/minecraft:jump" -> "jump". */
+    static String prettyTarget(String target) {
+        String tail = target.substring(target.lastIndexOf('/') + 1);
+        return tail.substring(tail.indexOf(':') + 1).replace('_', ' ');
+    }
+
+    static int count(ServerPlayer player, String itemId) {
         int count = 0;
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
@@ -177,7 +184,7 @@ final class QuestManager {
         return count;
     }
 
-    private static void validateTarget(Quest.Objective objective, String target) {
+    static void validateTarget(Quest.Objective objective, String target) {
         if (objective == Quest.Objective.STAT) {
             resolveStat(target);
             return;
@@ -220,7 +227,7 @@ final class QuestManager {
         return type.get(value);
     }
 
-    private static String normalizedId(String value) {
+    static String normalizedId(String value) {
         return value.contains(":") ? value : "minecraft:" + value;
     }
 
