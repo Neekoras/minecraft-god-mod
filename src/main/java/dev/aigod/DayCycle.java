@@ -23,4 +23,16 @@ final class DayCycle {
     static long sundownOf(long dayTime) {
         return day(dayTime) * DAY_LENGTH + SUNDOWN;
     }
+
+    /** Human word for the current sky, for the god's live context. */
+    static String phase(long dayTime) {
+        long tod = timeOfDay(dayTime);
+        if (tod < 1_000) return "dawn";
+        if (tod < 6_000) return "morning";
+        if (tod < 9_000) return "midday";
+        if (tod < 12_000) return "late afternoon, sundown approaching";
+        if (tod < 13_000) return "dusk";
+        if (tod < 23_000) return "night";
+        return "the last moments before dawn";
+    }
 }

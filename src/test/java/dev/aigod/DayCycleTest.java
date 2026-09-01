@@ -25,6 +25,15 @@ class DayCycleTest {
     }
 
     @Test
+    void phasesFollowTheSun() {
+        assertEquals("dawn", DayCycle.phase(0));
+        assertEquals("morning", DayCycle.phase(3_000));
+        assertEquals("dusk", DayCycle.phase(12_500));
+        assertEquals("night", DayCycle.phase(18_000));
+        assertEquals("dawn", DayCycle.phase(24_000));
+    }
+
+    @Test
     void daysCountFromZero() {
         assertEquals(0, DayCycle.day(23_999));
         assertEquals(1, DayCycle.day(24_000));

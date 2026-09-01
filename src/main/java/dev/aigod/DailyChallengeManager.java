@@ -5,6 +5,7 @@ import net.minecraft.server.level.ServerPlayer;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -21,7 +22,7 @@ final class DailyChallengeManager {
     private final GodService god;
     private final QuestManager quests;
     private final DailyStore store;
-    private final Map<UUID, Long> issuedDay;
+    private final Map<UUID, DailyStore.Record> records;
     private final Set<UUID> pending = new HashSet<>();
     private final Map<UUID, Integer> lastAttemptTick = new HashMap<>();
     private int ticks;
@@ -31,7 +32,7 @@ final class DailyChallengeManager {
         this.god = god;
         this.quests = quests;
         this.store = store;
-        this.issuedDay = store.load();
+        this.records = store.load();
     }
 
     void tick() {
@@ -41,12 +42,14 @@ final class DailyChallengeManager {
         long today = DayCycle.day(dayTime);
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             UUID id = player.getUUID();
-            if (issuedDay.getOrDefault(id, -1L) >= today) continue;
+            DailyStore.Record record = records.computeIfAbsent(id, ignored -> new DailyStore.Record());
+            if (record.lastIssuedDay >= today) continue;
             if (pending.contains(id) || quests.active(id).isPresent()) continue;
             if (ticks - lastAttemptTick.getOrDefault(id, -RETRY_TICKS) < RETRY_TICKS) continue;
             lastAttemptTick.put(id, ticks);
             pending.add(id);
-            god.requestDailyChallenge(player, DayCycle.sundownOf(dayTime),
+            god.requestDailyChallenge(player, DayCycle.sundownOf(dayTime), today,
+                    List.copyOf(record.pastChallenges),
                     () -> issued(id, today),
                     () -> pending.remove(id));
         }
@@ -54,7 +57,8 @@ final class DailyChallengeManager {
 
     private void issued(UUID id, long day) {
         pending.remove(id);
-        issuedDay.put(id, day);
-        store.save(issuedDay);
+        DailyStore.Record record = records.computeIfAbsent(id, ignored -> new DailyStore.Record());
+        record.remember(day, quests.active(id).map(Quest::challenge).orElse("(no challenge recorded)"));
+        store.save(records);
     }
 }
