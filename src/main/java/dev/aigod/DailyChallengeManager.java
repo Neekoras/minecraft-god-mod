@@ -3,9 +3,14 @@ package dev.aigod;
 import com.google.gson.JsonObject;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.BossEvent;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Runs the one communal goal per Minecraft day. At dawn the god is asked to set
@@ -20,6 +25,9 @@ final class DailyChallengeManager {
     private final GodService god;
     private final DailyStore store;
     private final DailyStore.State state;
+    private final ServerBossEvent bossBar = new ServerBossEvent(
+            UUID.nameUUIDFromBytes("ai-god-daily-goal".getBytes(StandardCharsets.UTF_8)),
+            Component.literal("server goal"), BossEvent.BossBarColor.YELLOW, BossEvent.BossBarOverlay.PROGRESS);
     private boolean pending;
     private int lastAttemptTick = -RETRY_TICKS;
     private int lastQuarter;
@@ -44,9 +52,12 @@ final class DailyChallengeManager {
                 finish(goal, true);
             } else if (goal.expired(now)) {
                 finish(goal, false);
-            } else if (changed) {
-                announceMilestone(goal);
-                store.save(state);
+            } else {
+                updateBossBar(goal, now);
+                if (changed) {
+                    announceMilestone(goal);
+                    store.save(state);
+                }
             }
             return;
         }
@@ -131,9 +142,28 @@ final class DailyChallengeManager {
                         goal.progress(), goal.amount(), QuestManager.prettyTarget(goal.target()))), false);
     }
 
+    /** Keeps the HUD boss bar naming the goal, tracking progress, and reddening toward sundown. */
+    private void updateBossBar(ServerGoal goal, long now) {
+        bossBar.setName(Component.literal("%s  •  %d/%d %s".formatted(
+                goal.challenge(), goal.progress(), goal.amount(), QuestManager.prettyTarget(goal.target()))));
+        bossBar.setProgress(goal.amount() == 0 ? 0.0F
+                : Math.min(1.0F, (float) goal.progress() / goal.amount()));
+        long ticksLeft = Math.max(0, goal.deadlineDayTime() - now);
+        bossBar.setColor(ticksLeft > 6_000 ? BossEvent.BossBarColor.GREEN
+                : ticksLeft > 2_000 ? BossEvent.BossBarColor.YELLOW
+                : BossEvent.BossBarColor.RED);
+        for (ServerPlayer player : new ArrayList<>(bossBar.getPlayers())) {
+            if (player.hasDisconnected()) bossBar.removePlayer(player);
+        }
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            bossBar.addPlayer(player);
+        }
+    }
+
     private void finish(ServerGoal goal, boolean succeeded) {
         state.activeGoal = null;
         store.save(state);
+        bossBar.removeAllPlayers();
         if (succeeded) {
             server.getPlayerList().broadcastSystemMessage(
                     Component.literal("§6server goal complete. the reward is granted to all"), false);
