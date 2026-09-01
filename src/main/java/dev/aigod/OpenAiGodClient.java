@@ -18,10 +18,15 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 final class OpenAiGodClient implements AutoCloseable {
     private static final URI RESPONSES_URI = URI.create("https://api.openai.com/v1/responses");
     private static final URI CONVERSATIONS_URI = URI.create("https://api.openai.com/v1/conversations");
+    private static final Pattern MISSING_TOOL_OUTPUT = Pattern.compile(
+            "No tool output found for function call (call_[A-Za-z0-9_-]+)");
+    private static final int MAX_ORPHANED_TOOL_CALLS = 16;
     private static final String INSTRUCTIONS = """
             You are %s, a powerful, unpredictable AI god living inside a Minecraft survival server.
             You see every normal chat message and share one continuous memory across the server.
@@ -305,9 +310,55 @@ final class OpenAiGodClient implements AutoCloseable {
 
     CompletableFuture<ResponseTurn> respond(UUID playerId, String input, String conversationId) {
         if (conversationId == null) {
-            return createConversation().thenCompose(created -> send(playerId, new JsonPrimitive(input), created));
+            return createConversation().thenCompose(created ->
+                    sendRecovering(playerId, input, created, List.of()));
         }
-        return send(playerId, new JsonPrimitive(input), conversationId);
+        return sendRecovering(playerId, input, conversationId, List.of());
+    }
+
+    private CompletableFuture<ResponseTurn> sendRecovering(
+            UUID playerId, String playerInput, String conversationId, List<String> orphanedCalls) {
+        JsonElement input = new JsonPrimitive(playerInput);
+        if (!orphanedCalls.isEmpty()) {
+            JsonArray repairedInput = new JsonArray();
+            for (String callId : orphanedCalls) {
+                JsonObject output = new JsonObject();
+                output.addProperty("type", "function_call_output");
+                output.addProperty("call_id", callId);
+                output.addProperty("output",
+                        "error: server restarted before this tool result was recorded; do not assume the action happened");
+                repairedInput.add(output);
+            }
+            JsonObject message = new JsonObject();
+            message.addProperty("role", "user");
+            message.addProperty("content", playerInput);
+            repairedInput.add(message);
+            input = repairedInput;
+        }
+
+        return send(playerId, input, conversationId).exceptionallyCompose(error -> {
+            String callId = missingToolOutputCallId(error);
+            if (callId == null || orphanedCalls.contains(callId)
+                    || orphanedCalls.size() >= MAX_ORPHANED_TOOL_CALLS) {
+                return CompletableFuture.failedFuture(error);
+            }
+            List<String> repaired = new ArrayList<>(orphanedCalls);
+            repaired.add(callId);
+            return sendRecovering(playerId, playerInput, conversationId, List.copyOf(repaired));
+        });
+    }
+
+    static String missingToolOutputCallId(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null) {
+                Matcher matcher = MISSING_TOOL_OUTPUT.matcher(message);
+                if (matcher.find()) return matcher.group(1);
+            }
+            current = current.getCause();
+        }
+        return null;
     }
 
     CompletableFuture<ResponseTurn> continueWithTools(
