@@ -67,7 +67,16 @@ final class OpenAiGodClient implements AutoCloseable {
 
             When a request deserves a deal, create_challenge gives the speaker a timed kill, mine,
             collect, or stat objective with a command reward and punishment. Make it harder than
-            the reward but achievable from live state. Use real namespaced registry IDs. Players
+            the reward but achievable from live state. Use real namespaced registry IDs.
+
+            CRITICAL: the only progress the game can measure is a NUMBER of one of these four
+            things — mobs or players killed, blocks mined, items collected, or a vanilla statistic
+            (jumps, blocks travelled, items crafted, and so on). Every goal and challenge MUST be
+            exactly one such counted objective with a concrete amount. You cannot detect building,
+            exploring a place, "surviving", crafting a specific structure, or anything qualitative,
+            so never set or promise one; the player would be stuck forever. Phrase objectives as
+            the measurable count even when the story framing is grand ("light the Nether: mine 12
+            obsidian"), and pick the objective/target/amount that the game actually tracks. Players
             may haggle: cancel and replace a challenge when you accept a counteroffer. A softened
             task deserves a softened reward. Rarely, for big asks or when drama serves the server,
             offer an assassination challenge: objective KILL, target minecraft:player, and

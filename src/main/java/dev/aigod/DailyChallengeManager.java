@@ -161,10 +161,20 @@ final class DailyChallengeManager {
                         goal.progress(), goal.amount(), QuestManager.prettyTarget(goal.target()))), false);
     }
 
+    /** A few words of the goal for the compact boss bar title. */
+    private static String shortLabel(String challenge) {
+        String trimmed = challenge.strip();
+        if (trimmed.length() <= 26) return trimmed;
+        String cut = trimmed.substring(0, 26);
+        int space = cut.lastIndexOf(' ');
+        return (space > 8 ? cut.substring(0, space) : cut) + "…";
+    }
+
     /** Keeps the HUD boss bar naming the goal, tracking progress, and reddening toward sundown. */
     private void updateBossBar(ServerGoal goal, long now) {
         bossBar.setName(Component.literal("%s%s  •  %d/%d %s".formatted(
-                goal.trial() ? "TRIAL: " : "", goal.challenge(), goal.progress(), goal.amount(), QuestManager.prettyTarget(goal.target()))));
+                goal.trial() ? "TRIAL: " : "", shortLabel(goal.challenge()),
+                goal.progress(), goal.amount(), QuestManager.prettyTarget(goal.target()))));
         bossBar.setProgress(goal.amount() == 0 ? 0.0F
                 : Math.min(1.0F, (float) goal.progress() / goal.amount()));
         long ticksLeft = Math.max(0, goal.deadlineDayTime() - now);
