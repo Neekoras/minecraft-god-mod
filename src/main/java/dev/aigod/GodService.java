@@ -38,12 +38,10 @@ final class GodService implements AutoCloseable {
     private final ConversationStore conversationStore;
     private final ScheduleStore scheduleStore;
     private final ArrayDeque<ChatTurn> queue = new ArrayDeque<>();
-    private Long pendingGoalDeadline;
-    private long pendingGoalDay;
-    private boolean pendingGoalTrial;
     private final List<DeferredCommand> deferredCommands = new ArrayList<>();
     private final List<ScheduledEvent> scheduledEvents = new ArrayList<>();
     private final Map<UUID, Set<String>> completedAdvancements = new HashMap<>();
+    private final Set<UUID> lowHealthPlayers = new HashSet<>();
     private final Map<UUID, Integer> chatCounts = new HashMap<>();
     private String conversationId;
     private boolean processing;
@@ -89,9 +87,6 @@ final class GodService implements AutoCloseable {
 
     void requestDailyGoal(ServerPlayer speaker, long deadlineDayTime, long day, boolean trial,
                           String chapterBrief, List<String> pastGoals, Runnable onIssued, Runnable onFailed) {
-        pendingGoalDeadline = deadlineDayTime;
-        pendingGoalDay = day;
-        pendingGoalTrial = trial;
         String history = pastGoals.isEmpty()
                 ? "This is the server's first daily goal ever; make it a memorable initiation."
                 : "Recent daily goals, oldest first, which you must NOT repeat or closely echo:\n- "
@@ -119,6 +114,10 @@ final class GodService implements AutoCloseable {
                 %s
                 """.formatted(day, server.getPlayerCount(), chapterBrief.strip(), brief.strip(), history));
         turn.systemEvent = true;
+        turn.silent = true;
+        turn.goalDeadline = deadlineDayTime;
+        turn.goalDay = day;
+        turn.goalTrial = trial;
         turn.onSuccess = onIssued;
         turn.onFailure = onFailed;
         queue.addLast(turn);
@@ -144,14 +143,17 @@ final class GodService implements AutoCloseable {
         processNext();
     }
 
-    void goalCompleted(ServerGoal goal) {
+    void goalCompleted(ServerGoal goal, int winStreak) {
         ServerPlayer speaker = server.getPlayerList().getPlayers().stream().findFirst().orElse(null);
         if (speaker == null) return;
-        ChatTurn turn = new ChatTurn(speaker.getUUID(), """
+        String milestone = winStreak % 3 == 0
+                ? " This is a %d-day win streak milestone. Grant one fitting communal boon with run_command.".formatted(winStreak)
+                : " The server's win streak is now " + winStreak + ".";
+        ChatTurn turn = new ChatTurn(speaker.getUUID(), ("""
                 The server COMPLETED today's goal: "%s" (%d %s). The stored reward already ran for
                 every online player. Celebrate briefly in your voice; a little spectacle (particles,
-                a triumphant sound) is welcome. Do not repeat the reward.
-                """.formatted(goal.challenge(), goal.amount(), goal.target()));
+                a triumphant sound) is welcome. Do not repeat the reward.%s
+                """).formatted(goal.challenge(), goal.amount(), goal.target(), milestone));
         turn.systemEvent = true;
         queue.addLast(turn);
         processNext();
@@ -163,7 +165,8 @@ final class GodService implements AutoCloseable {
         ChatTurn turn = new ChatTurn(speaker.getUUID(), """
                 The sun has set and the server FAILED today's goal: "%s" (progress %d/%d %s).
                 Deliver a fitting consequence to EVERYONE online right now using run_command,
-                matched to the goal they failed. Briefly tell them what happened.
+                matched to the goal they failed. Then tell them what happened naturally in one
+                short sentence. Do not use fantasy narration, proclamations, or judgment language.
                 """.formatted(goal.challenge(), goal.progress(), goal.amount(), goal.target()));
         turn.systemEvent = true;
         turn.onFailure = () -> {
@@ -186,7 +189,9 @@ final class GodService implements AutoCloseable {
     }
 
     void playerJoined(ServerPlayer player) {
-        completedAdvancements.put(player.getUUID(), currentAdvancements(player));
+        Set<String> advancements = currentAdvancements(player);
+        completedAdvancements.put(player.getUUID(), advancements);
+        daily.syncAdvancements(advancements);
         boolean firstJoin = player.getStats().getValue(Stats.CUSTOM.get(Stats.PLAY_TIME)) == 0;
         ChatTurn turn = new ChatTurn(player.getUUID(), firstJoin
                 ? """
@@ -212,6 +217,10 @@ final class GodService implements AutoCloseable {
         processNext();
         if (ticks % 20 == 0) {
             detectAdvancements();
+            detectLowHealth();
+            if (server.getPlayerCount() > 0 && daily.claimWorldEvent(System.currentTimeMillis())) {
+                requestWorldEvent();
+            }
             refreshAdminState();
         }
     }
@@ -255,7 +264,6 @@ final class GodService implements AutoCloseable {
                             + (cause == null ? "speaker vanished" : cause.getMessage())));
                 }
             }
-            pendingGoalDeadline = null;
             if (turn.onFailure != null) turn.onFailure.run();
             finishTurn();
             return;
@@ -272,7 +280,6 @@ final class GodService implements AutoCloseable {
         }
 
         if (response.toolCalls().isEmpty()) {
-            pendingGoalDeadline = null;
             if (turn.onSuccess != null) turn.onSuccess.run();
             finishTurn();
             return;
@@ -454,18 +461,61 @@ final class GodService implements AutoCloseable {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             Set<String> now = currentAdvancements(player);
             Set<String> known = completedAdvancements.computeIfAbsent(player.getUUID(), ignored -> new HashSet<>(now));
+            List<String> unlocked = new ArrayList<>();
             for (String advancement : now) {
-                if (known.add(advancement)) {
-                    ChatTurn turn = new ChatTurn(player.getUUID(), player.getGameProfile().name()
-                            + " just unlocked advancement " + advancement
-                            + ". React briefly if it is interesting. You may celebrate with particles or sound, or stay silent.");
-                    turn.systemEvent = true;
-                    queue.addLast(turn);
-                    daily.onAdvancement(advancement);
-                }
+                if (known.add(advancement)) unlocked.add(advancement);
+            }
+            if (unlocked.isEmpty() || daily.syncAdvancements(now)) continue;
+            for (String advancement : unlocked) {
+                ChatTurn turn = new ChatTurn(player.getUUID(), player.getGameProfile().name()
+                        + " just unlocked advancement " + advancement
+                        + ". React briefly if it is interesting. You may celebrate with particles or sound, or stay silent.");
+                turn.systemEvent = true;
+                queue.addLast(turn);
             }
         }
         processNext();
+    }
+
+    private void requestWorldEvent() {
+        ServerPlayer speaker = server.getPlayerList().getPlayers().stream().findFirst().orElse(null);
+        if (speaker == null) return;
+        ChatTurn turn = new ChatTurn(speaker.getUUID(), """
+                An hour has passed in Chapter %d: %s. Decide whether this moment deserves one
+                coherent world event. You may change the weather, reveal a small structure or
+                landmark away from player builds, stage a creature encounter, leave a discovery,
+                or use sound and particles. Fit it to the current chapter and live state. Keep it
+                playable, do not start a challenge or daily goal, and use stay_silent if nothing
+                would improve the game right now.
+                """.formatted(daily.chapterNumber(), daily.chapterName()));
+        turn.systemEvent = true;
+        queue.addLast(turn);
+        processNext();
+    }
+
+    private void detectLowHealth() {
+        Set<UUID> online = new HashSet<>();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            UUID id = player.getUUID();
+            online.add(id);
+            float hearts = player.getHealth() / 2.0F;
+            if (hearts > 4.0F) lowHealthPlayers.remove(id);
+            if (!shouldTriggerLowHealth(hearts, player.isAlive(), lowHealthPlayers.contains(id))) continue;
+            lowHealthPlayers.add(id);
+            ChatTurn turn = new ChatTurn(id, """
+                    %s just fell to %.1f hearts. This is a one-time near-death moment, not a chat
+                    request. React or act only if it improves the moment: rescue them, warn them,
+                    make the danger worse, or stay_silent. Do not create a challenge.
+                    """.formatted(player.getGameProfile().name(), hearts));
+            turn.systemEvent = true;
+            queue.addLast(turn);
+        }
+        lowHealthPlayers.retainAll(online);
+        processNext();
+    }
+
+    static boolean shouldTriggerLowHealth(float hearts, boolean alive, boolean tracked) {
+        return alive && hearts <= 2.0F && !tracked;
     }
 
     private Set<String> currentAdvancements(ServerPlayer player) {
@@ -569,12 +619,12 @@ final class GodService implements AutoCloseable {
     }
 
     private String createDailyGoal(ChatTurn turn, JsonObject arguments, ServerPlayer player) {
-        if (pendingGoalDeadline == null) {
+        if (turn.goalDeadline == null) {
             throw new IllegalArgumentException(
                     "No daily goal was requested; today's goal already exists or it is past sundown.");
         }
-        ServerGoal goal = daily.createGoal(arguments, pendingGoalDeadline, pendingGoalDay, pendingGoalTrial);
-        pendingGoalDeadline = null;
+        ServerGoal goal = daily.createGoal(arguments, turn.goalDeadline, turn.goalDay, turn.goalTrial);
+        turn.goalDeadline = null;
         turn.silent = true;
         say(goal.challenge());
         goalFanfare(player, goal);
@@ -586,7 +636,10 @@ final class GodService implements AutoCloseable {
         String name = arguments.get("name").getAsString().strip();
         String give = arguments.get("give_command").getAsString().strip();
         if (name.isEmpty() || give.isEmpty()) throw new IllegalArgumentException("relic needs a name and give_command");
-        quests.runOperatorCommand(give, player);
+        JsonObject command = new JsonObject();
+        command.addProperty("command", give);
+        String result = runOperatorCommand(command, player);
+        if (result.startsWith("error:")) return result;
         daily.addRelic(name);
         say("a new relic enters the world: " + name);
         return "ok: relic \"" + name + "\" forged and granted";
@@ -681,6 +734,7 @@ final class GodService implements AutoCloseable {
 
                 Live server state:
                 difficulty=%s, day=%d, sky=%s, daytime_ticks=%d, raining=%s, thundering=%s
+                chapter=%d (%s)
                 online_players=%d
                 server_goal=[%s]
                 current_speaker_view=[%s]
@@ -693,7 +747,8 @@ final class GodService implements AutoCloseable {
                 server.getWorldData().getDifficulty(), DayCycle.day(level.getOverworldClockTime()),
                 DayCycle.phase(level.getOverworldClockTime()), level.getOverworldClockTime(),
                 level.isRaining(), level.isThundering(),
-                server.getPlayerCount(), daily.statusLine(), inspectView(speaker), players, schedules);
+                daily.chapterNumber(), daily.chapterName(), server.getPlayerCount(), daily.statusLine(),
+                inspectView(speaker), players, schedules);
     }
 
     private static JsonArray inventoryJson(ServerPlayer player) {
@@ -745,6 +800,9 @@ final class GodService implements AutoCloseable {
         private String baseConversationId;
         private boolean silent;
         private boolean systemEvent;
+        private Long goalDeadline;
+        private long goalDay;
+        private boolean goalTrial;
         private Runnable onSuccess;
         private Runnable onFailure;
 

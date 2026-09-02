@@ -1,11 +1,11 @@
 {
   "0": "GodService",
-  "1": "QuestManager",
-  "2": "org.junit.jupiter.api.Test",
-  "3": "ServerGoal",
+  "1": "org.junit.jupiter.api.Test",
+  "2": "DayCycle",
+  "3": "DailyChallengeManager",
   "4": "org.slf4j.Logger",
-  "5": "com.google.gson.JsonObject",
-  "6": "net.minecraft.server.MinecraftServer",
+  "5": "OpenAiGodClient",
+  "6": "MinecraftChatText",
   "7": "AdminServer",
   "8": "app.js",
   "9": "Graphify Command and Extraction",
@@ -25,5 +25,6 @@
   "23": "GitHub Clone and Merge",
   "24": "Audio and Video Transcription",
   "25": "Graphify Engineering Agents",
-  "26": "Extraction Subagent Specification"
+  "26": "Extraction Subagent Specification",
+  "27": "com.google.gson.JsonObject"
 }

@@ -42,10 +42,10 @@
     "semantic_hash": ""
   },
   "src/main/java/dev/aigod/AiGodMod.java": {
-    "mtime": 1788242497.4157178,
-    "seen": 1788243609.069976,
-    "ast_hash": "f94efd20e1ea335aa143e4af0862ce71",
-    "semantic_hash": "f94efd20e1ea335aa143e4af0862ce71"
+    "mtime": 1788313029.0334597,
+    "seen": 1788313639.526485,
+    "ast_hash": "d0a2cc24461896c38454de2dcd54c629",
+    "semantic_hash": ""
   },
   "src/main/java/dev/aigod/ConversationStore.java": {
     "mtime": 1788228271.7480056,
@@ -54,16 +54,16 @@
     "semantic_hash": "0cb81dc57d94d4b0d96e88fc9415a558"
   },
   "src/main/java/dev/aigod/DailyChallengeManager.java": {
-    "mtime": 1788244956.421212,
-    "seen": 1788273454.5048242,
-    "ast_hash": "a1f7581412c4c3f4cd92ab8488567bf6",
+    "mtime": 1788316463.694195,
+    "seen": 1788316473.623401,
+    "ast_hash": "c442c7f9bfb21dcb51512f4ec3ecc5ad",
     "semantic_hash": ""
   },
   "src/main/java/dev/aigod/DailyStore.java": {
-    "mtime": 1788241908.6169827,
-    "seen": 1788243609.069978,
-    "ast_hash": "51423198a55d10c5beaf0ea28c8eece0",
-    "semantic_hash": "51423198a55d10c5beaf0ea28c8eece0"
+    "mtime": 1788315904.6315775,
+    "seen": 1788316116.888397,
+    "ast_hash": "f3023f37e5ec9a5dff800ab1e6e2d499",
+    "semantic_hash": ""
   },
   "src/main/java/dev/aigod/DayCycle.java": {
     "mtime": 1788236280.2835457,
@@ -72,9 +72,9 @@
     "semantic_hash": "64850059bb93e776ad5c4d2be70f6705"
   },
   "src/main/java/dev/aigod/GodService.java": {
-    "mtime": 1788245336.972686,
-    "seen": 1788273454.504826,
-    "ast_hash": "03c427fa5cdd535ba3232ceef1ca76aa",
+    "mtime": 1788316730.0403714,
+    "seen": 1788316742.540381,
+    "ast_hash": "d7bf1713e737295fe465a3aec6891696",
     "semantic_hash": ""
   },
   "src/main/java/dev/aigod/MinecraftChatText.java": {
@@ -84,22 +84,22 @@
     "semantic_hash": "8d2debcb5acfa6fa55d0160cc0d40610"
   },
   "src/main/java/dev/aigod/OpenAiGodClient.java": {
-    "mtime": 1788243829.3727896,
-    "seen": 1788243859.054452,
-    "ast_hash": "2e222b4ec57f77267b9bff63122200c3",
+    "mtime": 1788316659.7279027,
+    "seen": 1788316742.5403829,
+    "ast_hash": "e156d5d473760e2804bfb835d81ec395",
     "semantic_hash": ""
   },
   "src/main/java/dev/aigod/Quest.java": {
-    "mtime": 1788241872.3563607,
-    "seen": 1788243609.0699809,
-    "ast_hash": "eb38f6526bd985d1cf5792fd85e994e9",
-    "semantic_hash": "eb38f6526bd985d1cf5792fd85e994e9"
+    "mtime": 1788313029.0390031,
+    "seen": 1788313639.5264919,
+    "ast_hash": "86115b1e3266fe94839843291f0b3a6b",
+    "semantic_hash": ""
   },
   "src/main/java/dev/aigod/QuestManager.java": {
-    "mtime": 1788242497.4163432,
-    "seen": 1788243609.069982,
-    "ast_hash": "b04ef201a8e178153beeb15a6e10c7df",
-    "semantic_hash": "b04ef201a8e178153beeb15a6e10c7df"
+    "mtime": 1788313541.5550644,
+    "seen": 1788313639.5264928,
+    "ast_hash": "b5b68a8922a09ff88e24a4e2e8f4bf3b",
+    "semantic_hash": ""
   },
   "src/main/java/dev/aigod/QuestStore.java": {
     "mtime": 1788222228.425318,
@@ -120,15 +120,15 @@
     "semantic_hash": "577607505ff9e2b5087e977da2e5d7ef"
   },
   "src/main/java/dev/aigod/ServerGoal.java": {
-    "mtime": 1788241908.6157918,
-    "seen": 1788243609.069984,
-    "ast_hash": "cd284d5783025b082294cf53150d4ce9",
-    "semantic_hash": "cd284d5783025b082294cf53150d4ce9"
+    "mtime": 1788313029.0404053,
+    "seen": 1788313639.5264971,
+    "ast_hash": "a4e9f2daf967cc8f0b786279e662cda7",
+    "semantic_hash": ""
   },
   "src/main/resources/admin/app.js": {
-    "mtime": 1788245977.2041068,
-    "seen": 1788273454.504831,
-    "ast_hash": "b71eedec2bd64e06508a5d6b4048f3b2",
+    "mtime": 1788315904.6344342,
+    "seen": 1788316116.888407,
+    "ast_hash": "bc359d848c9c2057201e07d0ce6b3b2b",
     "semantic_hash": ""
   },
   "src/main/resources/fabric.mod.json": {
@@ -138,10 +138,10 @@
     "semantic_hash": "922f61e25481dacb8fb9c2d4aef2fc71"
   },
   "src/test/java/dev/aigod/DailyStoreTest.java": {
-    "mtime": 1788241908.6174512,
-    "seen": 1788243609.0699892,
-    "ast_hash": "b797022eca7fe2a111bad9fdbfaa1749",
-    "semantic_hash": "b797022eca7fe2a111bad9fdbfaa1749"
+    "mtime": 1788315904.6348116,
+    "seen": 1788316116.88841,
+    "ast_hash": "920aec05b7bc9d483860b1e07c2f29aa",
+    "semantic_hash": ""
   },
   "src/test/java/dev/aigod/DayCycleTest.java": {
     "mtime": 1788236280.2871506,
@@ -168,16 +168,16 @@
     "semantic_hash": "8b49b94d4d59a1cb53eeb5e40ca6a295"
   },
   "src/test/java/dev/aigod/QuestTest.java": {
-    "mtime": 1788241994.8956444,
-    "seen": 1788243609.0699918,
-    "ast_hash": "ca470f2f0884aca713a666fae8b01377",
-    "semantic_hash": "ca470f2f0884aca713a666fae8b01377"
+    "mtime": 1788313029.0430293,
+    "seen": 1788313639.526506,
+    "ast_hash": "6a3277c7bac898d94c3a9a92d63025ea",
+    "semantic_hash": ""
   },
   "src/test/java/dev/aigod/ServerGoalTest.java": {
-    "mtime": 1788241908.6178558,
-    "seen": 1788243609.069993,
-    "ast_hash": "154c86266827bcc9118885185357a6d2",
-    "semantic_hash": "154c86266827bcc9118885185357a6d2"
+    "mtime": 1788313029.0433736,
+    "seen": 1788313639.526506,
+    "ast_hash": "759964e0a0782da0462006d8262c573f",
+    "semantic_hash": ""
   },
   "server-icon.png": {
     "mtime": 1788246345.0376012,
@@ -264,9 +264,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1788243670.7176435,
-    "seen": 1788243709.898596,
-    "ast_hash": "9065e5fb0aed3177bb298a2147be799d",
+    "mtime": 1788315904.6358504,
+    "seen": 1788316116.8884292,
+    "ast_hash": "6c6eb3cf65c56a525535825256c95011",
     "semantic_hash": ""
   },
   "src/main/resources/admin/index.html": {
@@ -285,6 +285,18 @@
     "mtime": 1788246345.0321312,
     "seen": 1788273454.504843,
     "ast_hash": "f34cf923078eed7c4b686cb9187b583d",
+    "semantic_hash": ""
+  },
+  "src/test/java/dev/aigod/DailyChallengeManagerTest.java": {
+    "mtime": 1788316363.1570492,
+    "seen": 1788316378.5013719,
+    "ast_hash": "ccf6d6f5dfddc349261b5565d6d0ddb7",
+    "semantic_hash": ""
+  },
+  "src/test/java/dev/aigod/GodServiceTest.java": {
+    "mtime": 1788315904.6354015,
+    "seen": 1788316116.888413,
+    "ast_hash": "5559ff79ec9a740aeabb7e09119d4062",
     "semantic_hash": ""
   }
 }

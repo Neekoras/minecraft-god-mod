@@ -10,6 +10,7 @@ import net.minecraft.world.BossEvent;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -20,6 +21,7 @@ import java.util.UUID;
  */
 final class DailyChallengeManager {
     private static final int RETRY_TICKS = 1_200;
+    private static final long WORLD_EVENT_INTERVAL_MILLIS = 3_600_000;
 
     private final MinecraftServer server;
     private final GodService god;
@@ -67,20 +69,41 @@ final class DailyChallengeManager {
         return state.chapter;
     }
 
+    String chapterName() {
+        return chapter().name();
+    }
+
     /** Chapter framing handed to the god at dawn. */
     String chapterBrief() {
         Chapter chapter = chapter();
-        return "The server stands in Chapter %d of its saga: %s. %s. Higher chapters mean harder goals, so scale today's count and rarity to Chapter %d, clearly tougher than earlier chapters."
-                .formatted(state.chapter, chapter.name(), chapter.hint(), state.chapter);
+        return "The server stands in Chapter %d of its saga: %s, with a %d-day win streak. %s. Higher chapters mean harder goals, so scale today's count and rarity to Chapter %d, clearly tougher than earlier chapters."
+                .formatted(state.chapter, chapter.name(), state.winStreak,
+                        chapter.hint(), state.chapter);
     }
 
-    /** Advances the chapter when its milestone advancement is first completed by anyone. */
-    void onAdvancement(String advancementId) {
-        if (state.chapter >= CHAPTERS.length) return;
-        if (!chapter().milestone().equals(advancementId)) return;
-        state.chapter++;
+    /** Catches an existing world up and advances when the current milestone is completed. */
+    boolean syncAdvancements(Set<String> advancementIds) {
+        int previous = state.chapter;
+        while (state.chapter < CHAPTERS.length
+                && advancementIds.contains(chapter().milestone())) {
+            state.chapter++;
+        }
+        if (state.chapter == previous) return false;
         store.save(state);
         god.chapterAdvanced(state.chapter, chapter().name(), List.copyOf(state.relics));
+        return true;
+    }
+
+    boolean claimWorldEvent(long nowMillis) {
+        if (state.nextWorldEventAtMillis == 0) {
+            state.nextWorldEventAtMillis = nowMillis + WORLD_EVENT_INTERVAL_MILLIS;
+            store.save(state);
+            return false;
+        }
+        if (nowMillis < state.nextWorldEventAtMillis) return false;
+        state.nextWorldEventAtMillis = nowMillis + WORLD_EVENT_INTERVAL_MILLIS;
+        store.save(state);
+        return true;
     }
 
     /** Records a relic name the god forged at a chapter boundary. */
@@ -166,6 +189,11 @@ final class DailyChallengeManager {
         JsonObject value = new JsonObject();
         ServerGoal goal = state.activeGoal;
         value.addProperty("active", goal != null);
+        value.addProperty("chapter", state.chapter);
+        value.addProperty("chapter_name", chapter().name());
+        value.addProperty("win_streak", state.winStreak);
+        value.addProperty("next_world_event_in_seconds", state.nextWorldEventAtMillis == 0 ? 3_600
+                : Math.max(0, (state.nextWorldEventAtMillis - System.currentTimeMillis()) / 1_000));
         if (goal == null) return value;
         value.addProperty("challenge", goal.challenge());
         value.addProperty("objective", goal.objective().name().toLowerCase());
@@ -209,20 +237,21 @@ final class DailyChallengeManager {
                         goal.progress(), goal.amount(), QuestManager.prettyTarget(goal.target()))), false);
     }
 
-    /** A few words of the goal for the compact boss bar title. */
-    private static String shortLabel(String challenge) {
-        String trimmed = challenge.strip();
-        if (trimmed.length() <= 26) return trimmed;
-        String cut = trimmed.substring(0, 26);
-        int space = cut.lastIndexOf(' ');
-        return (space > 8 ? cut.substring(0, space) : cut) + "…";
+    static String bossBarLabel(ServerGoal goal) {
+        String action = switch (goal.objective()) {
+            case KILL -> "Kill";
+            case MINE -> "Mine";
+            case COLLECT -> "Collect";
+            case STAT -> "Reach";
+        };
+        return "%s%s  •  %d/%d".formatted(goal.trial() ? "Trial: " : "",
+                action + " " + QuestManager.prettyTarget(goal.target()),
+                goal.progress(), goal.amount());
     }
 
     /** Keeps the HUD boss bar naming the goal, tracking progress, and reddening toward sundown. */
     private void updateBossBar(ServerGoal goal, long now) {
-        bossBar.setName(Component.literal("Ch.%d %s%s  •  %d/%d %s".formatted(
-                state.chapter, goal.trial() ? "TRIAL: " : "", shortLabel(goal.challenge()),
-                goal.progress(), goal.amount(), QuestManager.prettyTarget(goal.target()))));
+        bossBar.setName(Component.literal(bossBarLabel(goal)));
         bossBar.setProgress(goal.amount() == 0 ? 0.0F
                 : Math.min(1.0F, (float) goal.progress() / goal.amount()));
         long ticksLeft = Math.max(0, goal.deadlineDayTime() - now);
@@ -239,6 +268,7 @@ final class DailyChallengeManager {
 
     private void finish(ServerGoal goal, boolean succeeded) {
         state.activeGoal = null;
+        state.winStreak = succeeded ? state.winStreak + 1 : 0;
         store.save(state);
         bossBar.removeAllPlayers();
         if (succeeded) {
@@ -247,10 +277,8 @@ final class DailyChallengeManager {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 god.quests().runOperatorCommand(goal.rewardCommand(), player);
             }
-            god.goalCompleted(goal);
+            god.goalCompleted(goal, state.winStreak);
         } else {
-            server.getPlayerList().broadcastSystemMessage(
-                    Component.literal("§cthe sun sets on a failed server goal. judgment falls on all"), false);
             god.goalFailed(goal);
         }
     }

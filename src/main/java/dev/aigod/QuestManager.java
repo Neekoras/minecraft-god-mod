@@ -57,11 +57,9 @@ final class QuestManager {
         );
         String targetPlayer = arguments.has("target_player")
                 ? arguments.get("target_player").getAsString().strip() : "";
-        if (!targetPlayer.isEmpty()) {
-            if (objective != Quest.Objective.KILL || !target.equals("minecraft:player")) {
-                throw new IllegalArgumentException(
-                        "target_player only works with objective KILL and target minecraft:player");
-            }
+        if (objective == Quest.Objective.KILL
+                && target.equals("minecraft:player")
+                && !targetPlayer.isEmpty()) {
             if (server.getPlayerList().getPlayerByName(targetPlayer) == null) {
                 throw new IllegalArgumentException("No online player named " + targetPlayer);
             }

@@ -16,11 +16,13 @@ The mod runs only on the server, so players do not install anything.
 The world has one communal challenge every Minecraft day. It stays pinned at the
 top of every player's screen in a native boss bar, shows combined progress, and
 ends at sundown. The AI chooses each challenge as the next step in the world's
-survival arc toward the Ender Dragon.
+survival arc toward the Ender Dragon. Milestone advancements unlock harder
+chapters, and each chapter forges a permanent relic for the players.
 
 Everyone contributes. Success runs the chosen reward for every online player.
 Failure gives the AI a turn to punish the server; if the API is unavailable, the
-stored fallback punishment runs instead.
+stored fallback punishment runs instead. Consecutive wins build a server streak;
+every third win lets the AI grant one extra communal boon.
 
 Players can also ask for personal favors. The AI may answer, act immediately, or
 create a timed personal challenge with its own reward and punishment. Personal
@@ -28,7 +30,9 @@ challenges do not replace the shared goal.
 
 The AI also reacts to joins, deaths, and visible advancements. It can inspect the
 block a player is looking at, remember the shared conversation across restarts,
-and schedule one-time or repeating actions.
+and schedule one-time or repeating actions. Once an hour it also gets a turn to
+stage one fitting world event—or do nothing when the world is already interesting.
+Dropping to two hearts gives it one near-death turn, with no repeat until recovery.
 
 Rapid messages from the same player are combined into one turn after two seconds
 of quiet. Repeated identical lines are not counted or described to the model.
@@ -63,7 +67,7 @@ OpenAI API key.
 
 ```bash
 export OPENAI_API_KEY="sk-..."
-export AI_GOD_MODEL="gpt-5.6-terra"
+export AI_GOD_MODEL="gpt-5.6-luna"
 export AI_GOD_ADMIN_PASSWORD="local-password"
 mkdir -p run
 printf 'eula=true\n' > run/eula.txt
@@ -83,7 +87,7 @@ The artifact is `build/libs/ai-god-0.1.0.jar`.
 Optional settings:
 
 ```text
-AI_GOD_MODEL=gpt-5.6-terra
+AI_GOD_MODEL=gpt-5.6-luna
 AI_GOD_NAME=AI God
 AI_GOD_COMPACT_THRESHOLD=100000
 AI_GOD_ADMIN_PORT=8765

@@ -1,27 +1,27 @@
 # Graph Report - minecraft-god-mod  (2026-09-01)
 
 ## Corpus Check
-- 42 files · ~24,934 words
+- 44 files · ~27,265 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 377 nodes · 873 edges · 27 communities (17 shown, 8 thin omitted)
-- Extraction: 84% EXTRACTED · 16% INFERRED · 0% AMBIGUOUS · INFERRED: 143 edges (avg confidence: 0.8)
+- 408 nodes · 973 edges · 28 communities (16 shown, 10 thin omitted)
+- Extraction: 83% EXTRACTED · 17% INFERRED · 0% AMBIGUOUS · INFERRED: 170 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `44600988`
+- Built from commit: `be71382d`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - GodService
-- QuestManager
 - org.junit.jupiter.api.Test
-- ServerGoal
+- DayCycle
+- DailyChallengeManager
 - org.slf4j.Logger
-- com.google.gson.JsonObject
-- net.minecraft.server.MinecraftServer
+- OpenAiGodClient
+- MinecraftChatText
 - AdminServer
 - app.js
 - Graphify Command and Extraction
@@ -40,14 +40,15 @@
 - Audio and Video Transcription
 - Graphify Engineering Agents
 - Extraction Subagent Specification
+- com.google.gson.JsonObject
 
 ## God Nodes (most connected - your core abstractions)
-1. `GodService` - 55 edges
-2. `QuestManager` - 28 edges
-3. `ServerGoal` - 25 edges
-4. `Quest` - 23 edges
-5. `AdminServer` - 21 edges
-6. `DailyChallengeManager` - 21 edges
+1. `GodService` - 62 edges
+2. `DailyChallengeManager` - 30 edges
+3. `QuestManager` - 28 edges
+4. `ServerGoal` - 28 edges
+5. `Quest` - 25 edges
+6. `AdminServer` - 21 edges
 7. `OpenAiGodClient` - 21 edges
 8. `Objective` - 16 edges
 9. `What You Must Do When Invoked` - 12 edges
@@ -68,43 +69,35 @@
 ## Import Cycles
 - None detected.
 
-## Communities (27 total, 8 thin omitted)
+## Communities (28 total, 10 thin omitted)
 
 ### Community 0 - "GodService"
-Cohesion: 0.10
-Nodes (8): net.minecraft.server.level.ServerPlayer, Override, ChatTurn, CommandOutcome, DeferredCommand, GodService, JsonObject, Override
-
-### Community 1 - "QuestManager"
 Cohesion: 0.09
-Nodes (8): Objective, COLLECT, KILL, MINE, STAT, Quest, QuestManager, QuestTest
+Nodes (10): net.minecraft.commands.CommandSourceStack, net.minecraft.network.chat.Component, net.minecraft.server.level.ServerPlayer, Override, ChatTurn, CommandOutcome, DeferredCommand, GodService (+2 more)
 
-### Community 2 - "org.junit.jupiter.api.Test"
+### Community 1 - "org.junit.jupiter.api.Test"
 Cohesion: 0.08
-Nodes (9): org.junit.jupiter.api.Test, DayCycle, MinecraftChatText, DailyStoreTest, DayCycleTest, GodServiceChatTurnTest, MinecraftChatTextTest, OpenAiGodClientTest (+1 more)
+Nodes (9): org.junit.jupiter.api.Test, Quest, DailyChallengeManagerTest, DailyStoreTest, GodServiceChatTurnTest, GodServiceTest, MinecraftChatTextTest, OpenAiGodClientTest (+1 more)
 
-### Community 3 - "ServerGoal"
-Cohesion: 0.15
-Nodes (5): DailyChallengeManager, JsonObject, DailyStore, State, ServerGoal
+### Community 3 - "DailyChallengeManager"
+Cohesion: 0.08
+Nodes (14): net.minecraft.server.level.ServerBossEvent, net.minecraft.server.MinecraftServer, Chapter, DailyChallengeManager, JsonObject, DailyStore, State, Objective (+6 more)
 
 ### Community 4 - "org.slf4j.Logger"
-Cohesion: 0.12
-Nodes (8): com.google.gson.Gson, net.fabricmc.api.ModInitializer, org.slf4j.Logger, AiGodMod, ConversationStore, QuestStore, ScheduledEvent, ScheduleStore
+Cohesion: 0.11
+Nodes (9): com.google.gson.Gson, com.google.gson.JsonElement, net.fabricmc.api.ModInitializer, org.slf4j.Logger, AiGodMod, ConversationStore, QuestStore, ScheduledEvent (+1 more)
 
-### Community 5 - "com.google.gson.JsonObject"
-Cohesion: 0.18
-Nodes (13): com.google.gson.JsonElement, com.google.gson.JsonObject, java.net.http.HttpClient, java.net.http.HttpResponse, java.net.URI, java.util.regex.Pattern, GodApiException, JsonObject (+5 more)
-
-### Community 6 - "net.minecraft.server.MinecraftServer"
-Cohesion: 0.25
-Nodes (7): net.minecraft.commands.CommandSourceStack, net.minecraft.network.chat.Component, net.minecraft.resources.Identifier, net.minecraft.server.level.ServerBossEvent, net.minecraft.server.MinecraftServer, net.minecraft.stats.Stat, net.minecraft.stats.StatType
+### Community 5 - "OpenAiGodClient"
+Cohesion: 0.16
+Nodes (14): com.google.gson.JsonArray, com.sun.net.httpserver.HttpServer, java.net.http.HttpClient, java.net.http.HttpResponse, java.net.URI, java.util.regex.Pattern, JsonArray, GodApiException (+6 more)
 
 ### Community 7 - "AdminServer"
-Cohesion: 0.25
-Nodes (5): com.sun.net.httpserver.HttpExchange, com.sun.net.httpserver.HttpServer, AdminServer, JsonObject, Override
+Cohesion: 0.27
+Nodes (4): com.sun.net.httpserver.HttpExchange, AdminServer, JsonObject, Override
 
 ### Community 8 - "app.js"
-Cohesion: 0.14
-Nodes (25): avatarUrl(), connection, emptyElement, filterLabel, filterMenu, groupTurns(), hearts(), inputDetails() (+17 more)
+Cohesion: 0.13
+Nodes (28): avatarUrl(), connection, emptyElement, expandedPlayers, filterLabel, filterMenu, groupTurns(), hearts() (+20 more)
 
 ### Community 9 - "Graphify Command and Extraction"
 Cohesion: 0.08
@@ -138,25 +131,29 @@ Nodes (3): For git commit hook, For native CLAUDE.md integration, graphify refer
 Cohesion: 0.50
 Nodes (3): For --cluster-only, For --update (incremental re-extraction), graphify reference: incremental update and cluster-only
 
+### Community 27 - "com.google.gson.JsonObject"
+Cohesion: 0.19
+Nodes (5): com.google.gson.JsonObject, net.minecraft.resources.Identifier, net.minecraft.stats.Stat, net.minecraft.stats.StatType, QuestManager
+
 ## Knowledge Gaps
-- **66 isolated node(s):** `user-data.sh script`, `AWS_DEFAULT_REGION`, `KILL`, `MINE`, `COLLECT` (+61 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 98 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **8 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **67 isolated node(s):** `user-data.sh script`, `AWS_DEFAULT_REGION`, `KILL`, `MINE`, `COLLECT` (+62 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 99 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **10 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `GodService` connect `GodService` to `QuestManager`, `ServerGoal`, `org.slf4j.Logger`, `com.google.gson.JsonObject`, `net.minecraft.server.MinecraftServer`?**
-  _High betweenness centrality (0.151) - this node is a cross-community bridge._
-- **Why does `OpenAiGodClient` connect `com.google.gson.JsonObject` to `GodService`, `org.junit.jupiter.api.Test`, `org.slf4j.Logger`?**
-  _High betweenness centrality (0.058) - this node is a cross-community bridge._
-- **Why does `QuestManager` connect `QuestManager` to `GodService`, `ServerGoal`, `org.slf4j.Logger`, `net.minecraft.server.MinecraftServer`?**
-  _High betweenness centrality (0.049) - this node is a cross-community bridge._
+- **Why does `GodService` connect `GodService` to `com.google.gson.JsonObject`, `DailyChallengeManager`, `org.slf4j.Logger`, `OpenAiGodClient`?**
+  _High betweenness centrality (0.162) - this node is a cross-community bridge._
+- **Why does `OpenAiGodClient` connect `OpenAiGodClient` to `GodService`, `org.junit.jupiter.api.Test`, `com.google.gson.JsonObject`, `org.slf4j.Logger`?**
+  _High betweenness centrality (0.053) - this node is a cross-community bridge._
+- **Why does `DailyChallengeManager` connect `DailyChallengeManager` to `GodService`, `org.slf4j.Logger`?**
+  _High betweenness centrality (0.047) - this node is a cross-community bridge._
 - **What connects `user-data.sh script`, `AWS_DEFAULT_REGION`, `KILL` to the rest of the system?**
-  _66 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _67 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `GodService` be split into smaller, more focused modules?**
-  _Cohesion score 0.1033182503770739 - nodes in this community are weakly interconnected._
-- **Should `QuestManager` be split into smaller, more focused modules?**
-  _Cohesion score 0.0935374149659864 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08704557091653865 - nodes in this community are weakly interconnected._
 - **Should `org.junit.jupiter.api.Test` be split into smaller, more focused modules?**
-  _Cohesion score 0.07926829268292683 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.0786308973172988 - nodes in this community are weakly interconnected._
+- **Should `DailyChallengeManager` be split into smaller, more focused modules?**
+  _Cohesion score 0.08165057067603161 - nodes in this community are weakly interconnected._

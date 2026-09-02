@@ -137,12 +137,13 @@ const renderState = (state = {}) => {
   document.querySelector("#server-goal").textContent = goal.active
     ? goal.challenge : legacyGoal || "Waiting for dawn";
   document.querySelector("#goal-detail").textContent = goal.active
-    ? `${goal.objective} ${goal.target} · every player contributes`
-    : legacyGoal ? "Live goal from the current server build." : "Every player contributes to the same objective.";
+    ? `Chapter ${goal.chapter}: ${goal.chapter_name} · ${goal.win_streak || 0} win streak · ${goal.objective} ${goal.target} · everyone contributes`
+    : legacyGoal ? "Live goal from the current server build."
+      : `Chapter ${goal.chapter || 1}: ${goal.chapter_name || "Foothold"} · ${goal.win_streak || 0} win streak`;
   document.querySelector("#goal-progress").textContent = goal.active ? `${goal.progress} / ${goal.amount}` : "—";
   document.querySelector("#goal-deadline").textContent = goal.active
-    ? `${Math.ceil(goal.ticks_left / 20)}s until sundown`
-    : "No active goal";
+    ? `${Math.ceil(goal.ticks_left / 20)}s until sundown · next world event in ${Math.ceil((goal.next_world_event_in_seconds || 0) / 60)}m`
+    : `Next world event in ${Math.ceil((goal.next_world_event_in_seconds || 0) / 60)}m`;
   document.querySelector("#goal-progress-bar").style.width = goal.active
     ? `${Math.min(100, (goal.progress / goal.amount) * 100)}%`
     : "0";

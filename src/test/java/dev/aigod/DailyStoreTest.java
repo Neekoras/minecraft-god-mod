@@ -23,6 +23,9 @@ class DailyStoreTest {
 
         DailyStore.State state = new DailyStore.State();
         state.remember(4, "mine 64 cobblestone together");
+        state.chapter = 3;
+        state.winStreak = 4;
+        state.nextWorldEventAtMillis = 123_456L;
         state.activeGoal = new ServerGoal("mine 64 cobblestone together", Quest.Objective.MINE,
                 "minecraft:cobblestone", 64, 4, 108_000, "give {player} bread 4",
                 "summon lightning_bolt ~ ~ ~", false);
@@ -30,6 +33,9 @@ class DailyStoreTest {
 
         DailyStore.State loaded = store.load();
         assertEquals(4, loaded.lastIssuedDay);
+        assertEquals(3, loaded.chapter);
+        assertEquals(4, loaded.winStreak);
+        assertEquals(123_456L, loaded.nextWorldEventAtMillis);
         assertEquals(1, loaded.pastGoals.size());
         assertEquals("mine 64 cobblestone together", loaded.activeGoal.challenge());
         assertEquals(64, loaded.activeGoal.amount());

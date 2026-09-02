@@ -24,6 +24,8 @@ final class DailyStore {
     static final class State {
         long lastIssuedDay = -1;
         int chapter = 1;
+        int winStreak;
+        long nextWorldEventAtMillis;
         List<String> pastGoals = new ArrayList<>();
         List<String> relics = new ArrayList<>();
         ServerGoal activeGoal;
