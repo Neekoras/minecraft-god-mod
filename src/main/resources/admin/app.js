@@ -90,6 +90,42 @@ const groupTurns = (items) => {
   return grouped.reverse();
 };
 
+const expandedPlayers = new Set();
+
+const playerStatsGrid = (player) => {
+  const stats = [
+    ["playtime", `${player.playtime_minutes ?? 0} min`],
+    ["chats", player.chats ?? 0],
+    ["deaths", player.deaths ?? 0],
+    ["mob kills", player.mob_kills ?? 0],
+    ["player kills", player.player_kills ?? 0],
+    ["blocks walked", player.blocks_walked ?? 0],
+    ["jumps", player.jumps ?? 0],
+    ["xp level", player.xp_level ?? 0],
+    ["gamemode", player.gamemode ?? "?"],
+  ];
+  const grid = document.createElement("div");
+  grid.className = "stat-grid";
+  grid.innerHTML = stats
+    .map(([label, value]) => `<div class="stat"><span>${label}</span><strong>${value}</strong></div>`)
+    .join("");
+  return grid;
+};
+
+const inventoryGrid = (player) => {
+  const wrap = document.createElement("div");
+  wrap.className = "inventory";
+  const items = player.inventory || [];
+  if (!items.length) {
+    wrap.innerHTML = '<p class="empty-inline">empty inventory</p>';
+    return wrap;
+  }
+  wrap.innerHTML = `<h4>inventory (${items.length})</h4><div class="inv-grid">` + items
+    .map((item) => `<div class="inv-item"><span>${item.name}</span><b>×${item.count}</b></div>`)
+    .join("") + "</div>";
+  return wrap;
+};
+
 const renderState = (state = {}) => {
   const players = state.players || [];
   const schedules = state.scheduled_events || [];
@@ -131,6 +167,19 @@ const renderState = (state = {}) => {
     row.querySelector(".heart-row").innerHTML = hearts(player.health, player.max_health);
     row.querySelector(".player-detail").textContent = `${player.health.toFixed(1)}/${player.max_health.toFixed(1)} hearts · ${player.hunger}/20 food · ${player.holding}`;
     row.querySelector(".challenge").textContent = player.challenge;
+
+    const detail = document.createElement("div");
+    detail.className = "player-expand";
+    detail.hidden = !expandedPlayers.has(player.name);
+    detail.append(playerStatsGrid(player), inventoryGrid(player));
+    row.append(detail);
+    row.classList.add("clickable");
+    row.addEventListener("click", () => {
+      const open = detail.hidden;
+      detail.hidden = !open;
+      if (open) expandedPlayers.add(player.name);
+      else expandedPlayers.delete(player.name);
+    });
     playerList.append(row);
   }
 

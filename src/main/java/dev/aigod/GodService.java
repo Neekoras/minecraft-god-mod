@@ -44,6 +44,7 @@ final class GodService implements AutoCloseable {
     private final List<DeferredCommand> deferredCommands = new ArrayList<>();
     private final List<ScheduledEvent> scheduledEvents = new ArrayList<>();
     private final Map<UUID, Set<String>> completedAdvancements = new HashMap<>();
+    private final Map<UUID, Integer> chatCounts = new HashMap<>();
     private String conversationId;
     private boolean processing;
     private int ticks;
@@ -65,6 +66,7 @@ final class GodService implements AutoCloseable {
 
     void hear(ServerPlayer player, String message) {
         long nowMillis = System.currentTimeMillis();
+        chatCounts.merge(player.getUUID(), 1, Integer::sum);
         ChatTurn pending = queue.peekLast();
         if (pending == null || pending.systemEvent || pending.started
                 || !pending.playerId.equals(player.getUUID()) || !pending.isRecent(nowMillis)) {
@@ -481,6 +483,18 @@ final class GodService implements AutoCloseable {
             value.addProperty("holding", heldItem(player));
             value.addProperty("challenge", quests.status(player));
             value.addProperty("chat_visibility", player.getChatVisibility().name().toLowerCase());
+            value.addProperty("xp_level", player.experienceLevel);
+            value.addProperty("gamemode", player.gameMode.getGameModeForPlayer().getName());
+            value.addProperty("chats", chatCounts.getOrDefault(player.getUUID(), 0));
+            value.addProperty("playtime_minutes",
+                    player.getStats().getValue(Stats.CUSTOM.get(Stats.PLAY_TIME)) / 1_200);
+            value.addProperty("deaths", player.getStats().getValue(Stats.CUSTOM.get(Stats.DEATHS)));
+            value.addProperty("mob_kills", player.getStats().getValue(Stats.CUSTOM.get(Stats.MOB_KILLS)));
+            value.addProperty("player_kills", player.getStats().getValue(Stats.CUSTOM.get(Stats.PLAYER_KILLS)));
+            value.addProperty("jumps", player.getStats().getValue(Stats.CUSTOM.get(Stats.JUMP)));
+            value.addProperty("blocks_walked",
+                    player.getStats().getValue(Stats.CUSTOM.get(Stats.WALK_ONE_CM)) / 100);
+            value.add("inventory", inventoryJson(player));
             players.add(value);
         }
         state.add("players", players);
@@ -648,6 +662,22 @@ final class GodService implements AutoCloseable {
                 DayCycle.phase(level.getOverworldClockTime()), level.getOverworldClockTime(),
                 level.isRaining(), level.isThundering(),
                 server.getPlayerCount(), daily.statusLine(), inspectView(speaker), players, schedules);
+    }
+
+    private static JsonArray inventoryJson(ServerPlayer player) {
+        JsonArray items = new JsonArray();
+        var inv = player.getInventory();
+        for (int slot = 0; slot < inv.getContainerSize(); slot++) {
+            ItemStack stack = inv.getItem(slot);
+            if (stack.isEmpty()) continue;
+            JsonObject entry = new JsonObject();
+            entry.addProperty("id", BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
+            entry.addProperty("name", QuestManager.prettyTarget(
+                    BuiltInRegistries.ITEM.getKey(stack.getItem()).toString()));
+            entry.addProperty("count", stack.getCount());
+            items.add(entry);
+        }
+        return items;
     }
 
     private static String heldItem(ServerPlayer player) {
