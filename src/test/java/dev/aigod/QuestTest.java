@@ -15,9 +15,9 @@ class QuestTest {
                 "minecraft:sheep", 2, Long.MAX_VALUE, "give {player} diamond 1",
                 "summon lightning_bolt ~ ~ ~", 0);
 
-        assertFalse(quest.record(Quest.Objective.KILL, "minecraft:cow"));
-        assertTrue(quest.record(Quest.Objective.KILL, "minecraft:sheep"));
-        assertTrue(quest.record(Quest.Objective.KILL, "minecraft:sheep"));
+        assertFalse(quest.record(Quest.Objective.KILL, "minecraft:cow", null));
+        assertTrue(quest.record(Quest.Objective.KILL, "minecraft:sheep", null));
+        assertTrue(quest.record(Quest.Objective.KILL, "minecraft:sheep", null));
         assertTrue(quest.complete());
         assertEquals(2, quest.progress());
     }
@@ -63,5 +63,18 @@ class QuestTest {
         quest.forceComplete();
         assertTrue(quest.complete());
         assertFalse(quest.expired(Long.MAX_VALUE));
+    }
+
+    @Test
+    void assassinationChallengesOnlyCountTheNamedVictim() {
+        Quest quest = new Quest(UUID.randomUUID(), "End Dennis", Quest.Objective.KILL,
+                "minecraft:player", 1, Long.MAX_VALUE, "give {player} diamond 5",
+                "kill {player}", 0);
+        quest.setTargetPlayer("Dennis_Test");
+
+        assertFalse(quest.record(Quest.Objective.KILL, "minecraft:player", "Someone_Else"));
+        assertFalse(quest.record(Quest.Objective.KILL, "minecraft:player", null));
+        assertTrue(quest.record(Quest.Objective.KILL, "minecraft:player", "Dennis_Test"));
+        assertTrue(quest.complete());
     }
 }

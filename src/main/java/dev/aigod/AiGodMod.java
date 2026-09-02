@@ -35,7 +35,7 @@ public final class AiGodMod implements ModInitializer {
                 LOGGER.warn("AI God disabled: OPENAI_API_KEY is not set");
                 return;
             }
-            String model = System.getenv().getOrDefault("AI_GOD_MODEL", "gpt-5.6-terra");
+            String model = System.getenv().getOrDefault("AI_GOD_MODEL", "gpt-5.6-luna");
             String godName = System.getenv().getOrDefault("AI_GOD_NAME", "AI God");
             int compactThreshold = positiveEnvironmentInt("AI_GOD_COMPACT_THRESHOLD", 100_000);
             var worldPath = server.getWorldPath(LevelResource.ROOT);
@@ -74,7 +74,8 @@ public final class AiGodMod implements ModInitializer {
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
             if (god == null) return;
             if (damageSource.getEntity() instanceof ServerPlayer player) {
-                god.recordKill(player, BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString());
+                god.recordKill(player, BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString(),
+                        entity instanceof ServerPlayer victim ? victim.getGameProfile().name() : null);
             }
             if (entity instanceof ServerPlayer victim) {
                 god.playerDied(victim, damageSource.getLocalizedDeathMessage(victim).getString());

@@ -25,7 +25,7 @@ class DailyStoreTest {
         state.remember(4, "mine 64 cobblestone together");
         state.activeGoal = new ServerGoal("mine 64 cobblestone together", Quest.Objective.MINE,
                 "minecraft:cobblestone", 64, 4, 108_000, "give {player} bread 4",
-                "summon lightning_bolt ~ ~ ~");
+                "summon lightning_bolt ~ ~ ~", false);
         store.save(state);
 
         DailyStore.State loaded = store.load();

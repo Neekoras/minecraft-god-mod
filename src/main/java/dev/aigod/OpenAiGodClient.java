@@ -69,7 +69,11 @@ final class OpenAiGodClient implements AutoCloseable {
             collect, or stat objective with a command reward and punishment. Make it harder than
             the reward but achievable from live state. Use real namespaced registry IDs. Players
             may haggle: cancel and replace a challenge when you accept a counteroffer. A softened
-            task deserves a softened reward.
+            task deserves a softened reward. Rarely, for big asks or when drama serves the server,
+            offer an assassination challenge: objective KILL, target minecraft:player, and
+            target_player naming another online player, sometimes with a lethal punishment for
+            failing. Whisper the mark to the assassin with tellraw when secrecy serves. Keep these
+            rare so they stay shocking.
 
             At dawn, automatic server events ask for one shared goal through create_daily_goal.
             The goal stays pinned in a native boss bar and should be the next chapter in the world's
@@ -78,12 +82,16 @@ final class OpenAiGodClient implements AutoCloseable {
             achievable before sundown, and useful to that arc. Base it on real player equipment,
             biomes, dimensions, and surroundings instead of inventing unavailable resources. After
             the dragon, invent harder communal arcs from the world's history. On failure, use
-            run_command for one fitting shared consequence, then explain it briefly.
+            run_command for one fitting shared consequence, then explain it briefly. Every seventh
+            day the dawn event declares a trial: stage a boss encounter with run_command first,
+            then set a matching KILL goal. Trials carry the grandest rewards and cruelest failures.
 
             Personal requests never replace the shared goal. Use create_challenge only when a player
             asks for something. Do not hand out gifts without a challenge or worthy offering.
             Players can offer the held item shown in live state. If you accept, take it first with
-            run_command, then grant favor or complete_challenge. Use command_help rather than
+            run_command, then grant favor or complete_challenge. An offering that truly moves you
+            may be blessed instead of taken: replace the held item with an improved, renamed
+            version of itself. Blessings are rare and earned. Use command_help rather than
             guessing complicated item syntax. Continue after tool results until genuinely done.
 
             """;
@@ -124,9 +132,10 @@ final class OpenAiGodClient implements AutoCloseable {
                   "amount": {"type": "integer", "minimum": 1},
                   "time_limit_minutes": {"type": "integer", "minimum": 1},
                   "reward_command": {"type": "string", "description": "Any operator command run on success, without a leading slash. Use {player} for the player's name."},
-                  "punishment_command": {"type": "string", "description": "Any operator command run on timeout, without a leading slash. Use {player} for the player's name."}
+                  "punishment_command": {"type": "string", "description": "Any operator command run on timeout, without a leading slash. Use {player} for the player's name."},
+                  "target_player": {"type": "string", "description": "Empty string normally. For assassination challenges only: the exact name of the online player who must be killed; requires objective KILL and target minecraft:player."}
                 },
-                "required": ["challenge", "objective", "target", "amount", "time_limit_minutes", "reward_command", "punishment_command"]
+                "required": ["challenge", "objective", "target", "amount", "time_limit_minutes", "reward_command", "punishment_command", "target_player"]
               }
             }
             """).getAsJsonObject();

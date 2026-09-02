@@ -40,6 +40,7 @@ final class GodService implements AutoCloseable {
     private final ArrayDeque<ChatTurn> queue = new ArrayDeque<>();
     private Long pendingGoalDeadline;
     private long pendingGoalDay;
+    private boolean pendingGoalTrial;
     private final List<DeferredCommand> deferredCommands = new ArrayList<>();
     private final List<ScheduledEvent> scheduledEvents = new ArrayList<>();
     private final Map<UUID, Set<String>> completedAdvancements = new HashMap<>();
@@ -74,8 +75,8 @@ final class GodService implements AutoCloseable {
         processNext();
     }
 
-    void recordKill(ServerPlayer player, String entityId) {
-        quests.recordKill(player, entityId);
+    void recordKill(ServerPlayer player, String entityId, String victimName) {
+        quests.recordKill(player, entityId, victimName);
         daily.recordKill(entityId);
     }
 
@@ -84,23 +85,36 @@ final class GodService implements AutoCloseable {
         daily.recordMine(blockId);
     }
 
-    void requestDailyGoal(ServerPlayer speaker, long deadlineDayTime, long day,
+    void requestDailyGoal(ServerPlayer speaker, long deadlineDayTime, long day, boolean trial,
                           List<String> pastGoals, Runnable onIssued, Runnable onFailed) {
         pendingGoalDeadline = deadlineDayTime;
         pendingGoalDay = day;
+        pendingGoalTrial = trial;
         String history = pastGoals.isEmpty()
                 ? "This is the server's first daily goal ever; make it a memorable initiation."
                 : "Recent daily goals, oldest first, which you must NOT repeat or closely echo:\n- "
                         + String.join("\n- ", pastGoals);
+        String brief = trial
+                ? """
+                  Today is a TRIAL DAY, the seventh-day reckoning. First STAGE the trial with
+                  run_command: summon a themed boss encounter near the players (a wither, or elite
+                  waves of custom-named mobs) that fits the world's current arc. Then set the goal
+                  with create_daily_goal using a KILL objective matching what you summoned. Trials
+                  deserve a far richer reward and a far harsher failure than an ordinary day.
+                  """
+                : """
+                  Set today's ONE server-wide goal with create_daily_goal now. Make it a clear next
+                  step in the world's long survival arc toward defeating the Ender Dragon, sized
+                  for everyone online, fun, hard, and achievable before sundown. Base it on the
+                  players' actual biomes, dimensions, equipment, and nearby world shown in live
+                  state.
+                  """;
         ChatTurn turn = new ChatTurn(speaker.getUUID(), """
-                A new Minecraft day dawns (server day %d, %d players online). Set today's ONE
-                server-wide goal with create_daily_goal now. Make it a clear next step in the
-                world's long survival arc toward defeating the Ender Dragon, sized for everyone
-                online, fun, hard, and achievable before sundown. Base it on the players' actual
-                biomes, dimensions, equipment, and nearby world shown in live state. The native boss
-                bar will keep it visible, so do not announce it again or repeat it in your reply.
+                A new Minecraft day dawns (server day %d, %d players online). %s
+                The native boss bar will keep the goal visible, so do not announce it again or
+                repeat it in your reply.
                 %s
-                """.formatted(day, server.getPlayerCount(), history));
+                """.formatted(day, server.getPlayerCount(), brief.strip(), history));
         turn.systemEvent = true;
         turn.onSuccess = onIssued;
         turn.onFailure = onFailed;
@@ -260,7 +274,7 @@ final class GodService implements AutoCloseable {
                 case "schedule_event" -> scheduleEvent(call.arguments(), player);
                 case "cancel_scheduled_event" -> cancelScheduledEvent(call.arguments());
                 case "create_challenge" -> createQuest(turn, call.arguments(), player);
-                case "create_daily_goal" -> createDailyGoal(turn, call.arguments());
+                case "create_daily_goal" -> createDailyGoal(turn, call.arguments(), player);
                 case "complete_challenge" -> completeChallenge(call.arguments());
                 case "cancel_challenge" -> cancelQuest(call.arguments());
                 case "stay_silent" -> {
@@ -518,15 +532,16 @@ final class GodService implements AutoCloseable {
                 quest.objective(), quest.target(), quest.amount());
     }
 
-    private String createDailyGoal(ChatTurn turn, JsonObject arguments) {
+    private String createDailyGoal(ChatTurn turn, JsonObject arguments, ServerPlayer player) {
         if (pendingGoalDeadline == null) {
             throw new IllegalArgumentException(
                     "No daily goal was requested; today's goal already exists or it is past sundown.");
         }
-        ServerGoal goal = daily.createGoal(arguments, pendingGoalDeadline, pendingGoalDay);
+        ServerGoal goal = daily.createGoal(arguments, pendingGoalDeadline, pendingGoalDay, pendingGoalTrial);
         pendingGoalDeadline = null;
         turn.silent = true;
         say(goal.challenge());
+        goalFanfare(player, goal);
         return "ok: server goal set for day %d: %s (%s %s x%d shared by all players; deadline is sundown)"
                 .formatted(goal.day(), goal.challenge(), goal.objective(), goal.target(), goal.amount());
     }
@@ -550,6 +565,18 @@ final class GodService implements AutoCloseable {
         queue.removeFirst();
         processing = false;
         processNext();
+    }
+
+    private void goalFanfare(ServerPlayer player, ServerGoal goal) {
+        String heading = goal.trial() ? "TRIAL DAY" : "Today's Goal";
+        String color = goal.trial() ? "dark_red" : "red";
+        String sound = goal.trial() ? "minecraft:entity.wither.spawn" : "minecraft:entity.ender_dragon.growl";
+        quests.runOperatorCommand("title @a times 10 70 20", player);
+        quests.runOperatorCommand("title @a subtitle {\"text\":"
+                + new JsonPrimitive(goal.challenge()) + ",\"color\":\"gold\"}", player);
+        quests.runOperatorCommand("title @a title {\"text\":\"" + heading
+                + "\",\"color\":\"" + color + "\",\"bold\":true}", player);
+        quests.runOperatorCommand("playsound " + sound + " master @a", player);
     }
 
     private void say(String message) {
@@ -647,7 +674,7 @@ final class GodService implements AutoCloseable {
     }
 
     static final class ChatTurn {
-        private static final long BURST_WINDOW_MILLIS = 2_000;
+        private static final long BURST_WINDOW_MILLIS = 750;
 
         private final UUID playerId;
         private final List<String> messages = new ArrayList<>();

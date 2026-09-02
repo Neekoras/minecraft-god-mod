@@ -55,17 +55,29 @@ final class QuestManager {
                 command(arguments, "punishment_command"),
                 baseline
         );
+        String targetPlayer = arguments.has("target_player")
+                ? arguments.get("target_player").getAsString().strip() : "";
+        if (!targetPlayer.isEmpty()) {
+            if (objective != Quest.Objective.KILL || !target.equals("minecraft:player")) {
+                throw new IllegalArgumentException(
+                        "target_player only works with objective KILL and target minecraft:player");
+            }
+            if (server.getPlayerList().getPlayerByName(targetPlayer) == null) {
+                throw new IllegalArgumentException("No online player named " + targetPlayer);
+            }
+            quest.setTargetPlayer(targetPlayer);
+        }
         quests.put(player.getUUID(), quest);
         save();
         return quest;
     }
 
-    void recordKill(ServerPlayer player, String entityId) {
-        record(player, Quest.Objective.KILL, entityId);
+    void recordKill(ServerPlayer player, String entityId, String victimName) {
+        record(player, Quest.Objective.KILL, entityId, victimName);
     }
 
     void recordMine(ServerPlayer player, String blockId) {
-        record(player, Quest.Objective.MINE, blockId);
+        record(player, Quest.Objective.MINE, blockId, null);
     }
 
     void tick() {
@@ -119,9 +131,9 @@ final class QuestManager {
                 seconds / 60, seconds % 60);
     }
 
-    private void record(ServerPlayer player, Quest.Objective objective, String target) {
+    private void record(ServerPlayer player, Quest.Objective objective, String target, String victimName) {
         Quest quest = quests.get(player.getUUID());
-        if (quest != null && quest.record(objective, target)) changed(player, quest);
+        if (quest != null && quest.record(objective, target, victimName)) changed(player, quest);
     }
 
     private void changed(ServerPlayer player, Quest quest) {
