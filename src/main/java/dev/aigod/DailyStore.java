@@ -23,7 +23,9 @@ final class DailyStore {
 
     static final class State {
         long lastIssuedDay = -1;
+        int chapter = 1;
         List<String> pastGoals = new ArrayList<>();
+        List<String> relics = new ArrayList<>();
         ServerGoal activeGoal;
 
         void remember(long day, String goal) {
@@ -49,6 +51,8 @@ final class DailyStore {
                 State state = GSON.fromJson(saved, State.class);
                 if (state == null) return new State();
                 if (state.pastGoals == null) state.pastGoals = new ArrayList<>();
+                if (state.relics == null) state.relics = new ArrayList<>();
+                if (state.chapter < 1) state.chapter = 1;
                 return state;
             }
             return migratePlayerDailies(saved);

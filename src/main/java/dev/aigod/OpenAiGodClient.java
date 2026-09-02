@@ -90,7 +90,11 @@ final class OpenAiGodClient implements AutoCloseable {
             All players contribute to one total. Keep daily steps varied, scaled to the group,
             achievable before sundown, and useful to that arc. Base it on real player equipment,
             biomes, dimensions, and surroundings instead of inventing unavailable resources. After
-            the dragon, invent harder communal arcs from the world's history. On failure, use
+            the dragon, invent harder communal arcs from the world's history. The world moves
+            through numbered CHAPTERS of one long saga; each dawn event tells you the current
+            chapter and what the server needs next, and daily goals get harder every chapter.
+            When an event announces an ascension to a new chapter, use forge_relic once to grant a
+            permanent named trophy. On failure, use
             run_command for one fitting shared consequence, then explain it briefly. Every seventh
             day the dawn event declares a trial: stage a boss encounter with run_command first,
             then set a matching KILL goal. Trials carry the grandest rewards and cruelest failures.
@@ -194,6 +198,23 @@ final class OpenAiGodClient implements AutoCloseable {
                   "color": {"type": "string", "enum": ["white", "gold", "yellow", "green", "aqua", "red", "light_purple"]}
                 },
                 "required": ["text", "color"]
+              }
+            }
+            """).getAsJsonObject();
+    private static final JsonObject FORGE_RELIC_TOOL = JsonParser.parseString("""
+            {
+              "type": "function",
+              "name": "forge_relic",
+              "description": "Forge a permanent server relic at a chapter ascension: give every online player one renamed, enchanted trophy item. Only use when an automatic event announces a new chapter.",
+              "strict": true,
+              "parameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {"type": "string", "description": "The relic's unique name, e.g. 'Emberfang of the Third Chapter'."},
+                  "give_command": {"type": "string", "description": "An operator command (no leading slash) that gives the relic to every player. Use command_help for exact item component syntax including a custom name and enchantments."}
+                },
+                "required": ["name", "give_command"]
               }
             }
             """).getAsJsonObject();
@@ -402,6 +423,7 @@ final class OpenAiGodClient implements AutoCloseable {
         tools.add(INSPECT_VIEW_TOOL.deepCopy());
         tools.add(SCHEDULE_EVENT_TOOL.deepCopy());
         tools.add(CANCEL_SCHEDULED_EVENT_TOOL.deepCopy());
+        tools.add(FORGE_RELIC_TOOL.deepCopy());
         tools.add(COMPLETE_CHALLENGE_TOOL.deepCopy());
         tools.add(CANCEL_QUEST_TOOL.deepCopy());
         tools.add(STAY_SILENT_TOOL.deepCopy());

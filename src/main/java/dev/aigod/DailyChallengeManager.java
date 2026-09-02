@@ -42,6 +42,54 @@ final class DailyChallengeManager {
         this.lastQuarter = goal == null || goal.amount() == 0 ? 0 : goal.progress() * 4 / goal.amount();
     }
 
+    private record Chapter(String name, String milestone, String hint) {}
+
+    private static final Chapter[] CHAPTERS = {
+        new Chapter("Foothold", "minecraft:story/smelt_iron",
+                "the server needs iron tools and armor; steer goals toward mining and smelting"),
+        new Chapter("Deep Delving", "minecraft:story/mine_diamond",
+                "push the server toward diamonds and enchanting; deeper mining and gear"),
+        new Chapter("The Nether", "minecraft:nether/obtain_blaze_rod",
+                "drive the server into the Nether for blaze rods and nether loot"),
+        new Chapter("The Hunt", "minecraft:story/follow_ender_eye",
+                "gather ender pearls and blaze powder, craft eyes of ender, find the stronghold"),
+        new Chapter("The End", "minecraft:end/kill_dragon",
+                "prepare the raid on the End and the Ender Dragon"),
+        new Chapter("Beyond", "minecraft:nether/summon_wither",
+                "the dragon is dead; invent ever harder endgame arcs (wither, elytra, beacons)"),
+    };
+
+    private Chapter chapter() {
+        return CHAPTERS[Math.min(state.chapter - 1, CHAPTERS.length - 1)];
+    }
+
+    int chapterNumber() {
+        return state.chapter;
+    }
+
+    /** Chapter framing handed to the god at dawn. */
+    String chapterBrief() {
+        Chapter chapter = chapter();
+        return "The server stands in Chapter %d of its saga: %s. %s. Higher chapters mean harder goals, so scale today's count and rarity to Chapter %d, clearly tougher than earlier chapters."
+                .formatted(state.chapter, chapter.name(), chapter.hint(), state.chapter);
+    }
+
+    /** Advances the chapter when its milestone advancement is first completed by anyone. */
+    void onAdvancement(String advancementId) {
+        if (state.chapter >= CHAPTERS.length) return;
+        if (!chapter().milestone().equals(advancementId)) return;
+        state.chapter++;
+        store.save(state);
+        god.chapterAdvanced(state.chapter, chapter().name(), List.copyOf(state.relics));
+    }
+
+    /** Records a relic name the god forged at a chapter boundary. */
+    void addRelic(String name) {
+        state.relics.add(name);
+        while (state.relics.size() > 24) state.relics.remove(0);
+        store.save(state);
+    }
+
     void tick() {
         if (++ticks % 20 != 0) return;
         long now = server.overworld().getOverworldClockTime();
@@ -69,7 +117,7 @@ final class DailyChallengeManager {
         lastAttemptTick = ticks;
         pending = true;
         god.requestDailyGoal(speaker, DayCycle.sundownOf(now), today, today > 0 && today % 7 == 0,
-                List.copyOf(state.pastGoals),
+                chapterBrief(), List.copyOf(state.pastGoals),
                 () -> pending = false,
                 () -> pending = false);
     }
@@ -172,8 +220,8 @@ final class DailyChallengeManager {
 
     /** Keeps the HUD boss bar naming the goal, tracking progress, and reddening toward sundown. */
     private void updateBossBar(ServerGoal goal, long now) {
-        bossBar.setName(Component.literal("%s%s  •  %d/%d %s".formatted(
-                goal.trial() ? "TRIAL: " : "", shortLabel(goal.challenge()),
+        bossBar.setName(Component.literal("Ch.%d %s%s  •  %d/%d %s".formatted(
+                state.chapter, goal.trial() ? "TRIAL: " : "", shortLabel(goal.challenge()),
                 goal.progress(), goal.amount(), QuestManager.prettyTarget(goal.target()))));
         bossBar.setProgress(goal.amount() == 0 ? 0.0F
                 : Math.min(1.0F, (float) goal.progress() / goal.amount()));

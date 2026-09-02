@@ -88,7 +88,7 @@ final class GodService implements AutoCloseable {
     }
 
     void requestDailyGoal(ServerPlayer speaker, long deadlineDayTime, long day, boolean trial,
-                          List<String> pastGoals, Runnable onIssued, Runnable onFailed) {
+                          String chapterBrief, List<String> pastGoals, Runnable onIssued, Runnable onFailed) {
         pendingGoalDeadline = deadlineDayTime;
         pendingGoalDay = day;
         pendingGoalTrial = trial;
@@ -113,13 +113,33 @@ final class GodService implements AutoCloseable {
                   """;
         ChatTurn turn = new ChatTurn(speaker.getUUID(), """
                 A new Minecraft day dawns (server day %d, %d players online). %s
+                %s
                 The native boss bar will keep the goal visible, so do not announce it again or
                 repeat it in your reply.
                 %s
-                """.formatted(day, server.getPlayerCount(), brief.strip(), history));
+                """.formatted(day, server.getPlayerCount(), chapterBrief.strip(), brief.strip(), history));
         turn.systemEvent = true;
         turn.onSuccess = onIssued;
         turn.onFailure = onFailed;
+        queue.addLast(turn);
+        processNext();
+    }
+
+    void chapterAdvanced(int chapter, String name, java.util.List<String> relics) {
+        ServerPlayer speaker = server.getPlayerList().getPlayers().stream().findFirst().orElse(null);
+        if (speaker == null) return;
+        quests.runOperatorCommand("title @a times 20 90 30", speaker);
+        quests.runOperatorCommand("title @a subtitle {\"text\":\"Chapter " + chapter + ": " + name
+                + "\",\"color\":\"aqua\"}", speaker);
+        quests.runOperatorCommand("title @a title {\"text\":\"ASCENSION\",\"color\":\"gold\",\"bold\":true}", speaker);
+        quests.runOperatorCommand("playsound minecraft:ui.toast.challenge_complete master @a", speaker);
+        String owned = relics.isEmpty() ? "none yet" : String.join(", ", relics);
+        ChatTurn turn = new ChatTurn(speaker.getUUID(), ("""
+                The server has ASCENDED to Chapter %d: %s. Mark it with the forge_relic tool: give
+                every online player one renamed, enchanted trophy worthy of this chapter, with a
+                unique name. Relics already forged: %s. Do not repeat a relic name.
+                """).formatted(chapter, name, owned));
+        turn.systemEvent = true;
         queue.addLast(turn);
         processNext();
     }
@@ -278,6 +298,7 @@ final class GodService implements AutoCloseable {
                 case "create_challenge" -> createQuest(turn, call.arguments(), player);
                 case "create_daily_goal" -> createDailyGoal(turn, call.arguments(), player);
                 case "complete_challenge" -> completeChallenge(call.arguments());
+                case "forge_relic" -> forgeRelic(call.arguments(), player);
                 case "cancel_challenge" -> cancelQuest(call.arguments());
                 case "stay_silent" -> {
                     turn.silent = true;
@@ -440,6 +461,7 @@ final class GodService implements AutoCloseable {
                             + ". React briefly if it is interesting. You may celebrate with particles or sound, or stay silent.");
                     turn.systemEvent = true;
                     queue.addLast(turn);
+                    daily.onAdvancement(advancement);
                 }
             }
         }
@@ -558,6 +580,16 @@ final class GodService implements AutoCloseable {
         goalFanfare(player, goal);
         return "ok: server goal set for day %d: %s (%s %s x%d shared by all players; deadline is sundown)"
                 .formatted(goal.day(), goal.challenge(), goal.objective(), goal.target(), goal.amount());
+    }
+
+    private String forgeRelic(JsonObject arguments, ServerPlayer player) {
+        String name = arguments.get("name").getAsString().strip();
+        String give = arguments.get("give_command").getAsString().strip();
+        if (name.isEmpty() || give.isEmpty()) throw new IllegalArgumentException("relic needs a name and give_command");
+        quests.runOperatorCommand(give, player);
+        daily.addRelic(name);
+        say("a new relic enters the world: " + name);
+        return "ok: relic \"" + name + "\" forged and granted";
     }
 
     private String completeChallenge(JsonObject arguments) {
