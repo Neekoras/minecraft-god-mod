@@ -23,6 +23,7 @@ motd=Minecraft, with ChatGPT.
 server-port=25565
 max-players=10
 online-mode=true
+enforce-secure-profile=false
 white-list=false
 view-distance=8
 simulation-distance=6

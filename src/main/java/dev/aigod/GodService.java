@@ -666,13 +666,24 @@ final class GodService implements AutoCloseable {
         processNext();
     }
 
+    /** A short imperative for the on-screen title, e.g. "Collect 24 iron ingot". */
+    private static String shortObjective(ServerGoal goal) {
+        String verb = switch (goal.objective()) {
+            case KILL -> "Kill";
+            case MINE -> "Mine";
+            case COLLECT -> "Collect";
+            case STAT -> "Reach";
+        };
+        return "%s %d %s".formatted(verb, goal.amount(), QuestManager.prettyTarget(goal.target()));
+    }
+
     private void goalFanfare(ServerPlayer player, ServerGoal goal) {
         String heading = goal.trial() ? "TRIAL DAY" : "Today's Goal";
         String color = goal.trial() ? "dark_red" : "red";
         String sound = goal.trial() ? "minecraft:entity.wither.spawn" : "minecraft:entity.ender_dragon.growl";
         quests.runOperatorCommand("title @a times 10 70 20", player);
         quests.runOperatorCommand("title @a subtitle {\"text\":"
-                + new JsonPrimitive(goal.challenge()) + ",\"color\":\"gold\"}", player);
+                + new JsonPrimitive(shortObjective(goal)) + ",\"color\":\"gold\"}", player);
         quests.runOperatorCommand("title @a title {\"text\":\"" + heading
                 + "\",\"color\":\"" + color + "\",\"bold\":true}", player);
         quests.runOperatorCommand("playsound " + sound + " master @a", player);

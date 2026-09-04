@@ -291,7 +291,8 @@ final class DailyChallengeManager {
     }
 
     private static String command(JsonObject object, String key) {
-        String command = required(object, key).strip();
+        if (!object.has(key)) return "";
+        String command = object.get(key).getAsString().strip();
         return command.startsWith("/") ? command.substring(1) : command;
     }
 }

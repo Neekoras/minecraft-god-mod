@@ -147,6 +147,7 @@ final class QuestManager {
     }
 
     void runOperatorCommand(String command, ServerPlayer player) {
+        if (command == null || command.isBlank() || command.equalsIgnoreCase("none")) return;
         String expanded = command.replace("{player}", player.getGameProfile().name());
         server.getCommands().performPrefixedCommand(
                 player.createCommandSourceStack()
@@ -232,7 +233,8 @@ final class QuestManager {
     }
 
     private static String command(JsonObject object, String key) {
-        String command = requiredString(object, key).strip();
+        if (!object.has(key)) return "";
+        String command = object.get(key).getAsString().strip();
         return command.startsWith("/") ? command.substring(1) : command;
     }
 
